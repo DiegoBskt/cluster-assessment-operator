@@ -44,10 +44,10 @@ oc apply -f config/manager/
 
 ```bash
 # Build the operator image
-make docker-build IMG=your-registry/cluster-assessment-operator:v1.0.0
+make podman-build IMG=your-registry/cluster-assessment-operator:v1.0.0
 
 # Push to registry
-make docker-push IMG=your-registry/cluster-assessment-operator:v1.0.0
+make podman-push IMG=your-registry/cluster-assessment-operator:v1.0.0
 
 # Deploy
 make deploy IMG=your-registry/cluster-assessment-operator:v1.0.0

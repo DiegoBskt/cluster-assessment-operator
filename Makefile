@@ -49,17 +49,18 @@ build: fmt vet ## Build manager binary.
 run: fmt vet ## Run a controller from your host.
 	go run ./main.go
 
-.PHONY: docker-build
-docker-build: ## Build docker image with the manager.
-	docker build -t ${IMG} .
+.PHONY: podman-build
+podman-build: ## Build container image with the manager.
+	podman build -t ${IMG} .
 
-.PHONY: docker-push
-docker-push: ## Push docker image with the manager.
-	docker push ${IMG}
+.PHONY: podman-push
+podman-push: ## Push container image with the manager.
+	podman push ${IMG}
 
-.PHONY: docker-buildx
-docker-buildx: ## Build and push docker image for cross-platform support.
-	docker buildx build --push --platform linux/amd64,linux/arm64 -t ${IMG} .
+.PHONY: podman-buildx
+podman-buildx: ## Build and push container image for cross-platform support.
+	podman build --platform linux/amd64,linux/arm64 --manifest ${IMG} .
+	podman manifest push ${IMG}
 
 ##@ Deployment
 
