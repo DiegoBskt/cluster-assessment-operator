@@ -333,6 +333,7 @@ oc get pods -n openshift-operators | grep cluster-assessment
 
 | Document | Description |
 |----------|-------------|
+| [Architecture](docs/architecture.md) | Visual diagrams of operator components and workflows |
 | [Troubleshooting](docs/troubleshooting.md) | Common issues and solutions |
 | [Upgrade Guide](docs/upgrade.md) | Version upgrade procedures |
 | [Contributing](CONTRIBUTING.md) | Guidelines for contributors |
