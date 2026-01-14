@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/robfig/cron/v3"
@@ -333,10 +334,48 @@ func (r *ClusterAssessmentReconciler) calculateSummary(findings []assessmentv1al
 func (r *ClusterAssessmentReconciler) storeReportInConfigMap(ctx context.Context, assessment *assessmentv1alpha1.ClusterAssessment) error {
 	logger := log.FromContext(ctx)
 
-	// Generate report
-	reportData, err := report.GenerateJSON(assessment)
-	if err != nil {
-		return fmt.Errorf("failed to generate report: %w", err)
+	// Determine format(s) - default to json
+	format := assessment.Spec.ReportStorage.ConfigMap.Format
+	if format == "" {
+		format = "json"
+	}
+
+	// Prepare data map
+	data := make(map[string]string)
+	binaryData := make(map[string][]byte)
+
+	// Generate requested formats
+	formats := strings.Split(format, ",")
+	for _, f := range formats {
+		f = strings.TrimSpace(strings.ToLower(f))
+		switch f {
+		case "json":
+			reportData, err := report.GenerateJSON(assessment)
+			if err != nil {
+				logger.Error(err, "Failed to generate JSON report")
+				continue
+			}
+			data["report.json"] = string(reportData)
+			logger.Info("Generated JSON report")
+
+		case "html":
+			reportData, err := report.GenerateHTML(assessment)
+			if err != nil {
+				logger.Error(err, "Failed to generate HTML report")
+				continue
+			}
+			data["report.html"] = string(reportData)
+			logger.Info("Generated HTML report")
+
+		case "pdf":
+			reportData, err := report.GeneratePDF(assessment)
+			if err != nil {
+				logger.Error(err, "Failed to generate PDF report")
+				continue
+			}
+			binaryData["report.pdf"] = reportData
+			logger.Info("Generated PDF report")
+		}
 	}
 
 	// Determine ConfigMap name
@@ -356,9 +395,8 @@ func (r *ClusterAssessmentReconciler) storeReportInConfigMap(ctx context.Context
 				"assessment.openshift.io/name": assessment.Name,
 			},
 		},
-		Data: map[string]string{
-			"report.json": string(reportData),
-		},
+		Data:       data,
+		BinaryData: binaryData,
 	}
 
 	// Set owner reference
@@ -368,7 +406,7 @@ func (r *ClusterAssessmentReconciler) storeReportInConfigMap(ctx context.Context
 
 	// Create or update
 	existingCM := &corev1.ConfigMap{}
-	err = r.Get(ctx, client.ObjectKey{Name: cm.Name, Namespace: cm.Namespace}, existingCM)
+	err := r.Get(ctx, client.ObjectKey{Name: cm.Name, Namespace: cm.Namespace}, existingCM)
 	if errors.IsNotFound(err) {
 		if err := r.Create(ctx, cm); err != nil {
 			return fmt.Errorf("failed to create ConfigMap: %w", err)
@@ -377,6 +415,7 @@ func (r *ClusterAssessmentReconciler) storeReportInConfigMap(ctx context.Context
 		return fmt.Errorf("failed to get ConfigMap: %w", err)
 	} else {
 		existingCM.Data = cm.Data
+		existingCM.BinaryData = cm.BinaryData
 		existingCM.Labels = cm.Labels
 		if err := r.Update(ctx, existingCM); err != nil {
 			return fmt.Errorf("failed to update ConfigMap: %w", err)
@@ -384,7 +423,7 @@ func (r *ClusterAssessmentReconciler) storeReportInConfigMap(ctx context.Context
 	}
 
 	assessment.Status.ReportConfigMap = cmName
-	logger.Info("Report stored in ConfigMap", "configMap", cmName)
+	logger.Info("Report stored in ConfigMap", "configMap", cmName, "formats", format)
 	return nil
 }
 

@@ -71,6 +71,12 @@ type ConfigMapStorageSpec struct {
 	// Name is the ConfigMap name. Defaults to <assessment-name>-report.
 	// +optional
 	Name string `json:"name,omitempty"`
+
+	// Format specifies the report format(s) to generate.
+	// Valid values are: "json", "html", "pdf", or combinations like "json,html,pdf"
+	// Defaults to "json"
+	// +optional
+	Format string `json:"format,omitempty"`
 }
 
 // GitStorageSpec configures Git repository export

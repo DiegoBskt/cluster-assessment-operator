@@ -3,6 +3,7 @@ module github.com/openshift-assessment/cluster-assessment-operator
 go 1.25.0
 
 require (
+	github.com/jung-kurt/gofpdf v1.16.2
 	github.com/openshift/api v0.0.0-20260113121726-a0ffeb320368
 	github.com/robfig/cron/v3 v3.0.1
 	gopkg.in/yaml.v3 v3.0.1

@@ -10,15 +10,15 @@ The Cluster Assessment Operator is designed for consulting engagements where cus
 - **Comprehensive validation**: Checks across version, nodes, security, networking, storage, and more
 - **Baseline profiles**: Production and development profiles with appropriate thresholds
 - **Flexible scheduling**: On-demand or cron-scheduled assessments
-- **Structured reports**: JSON output stored in CR status or ConfigMaps
+- **Multiple report formats**: JSON, HTML, and PDF output stored in ConfigMaps
 
 ## Features
 
 | Category | Validations |
 |----------|-------------|
-| **Platform** | OpenShift version, upgrade channel, lifecycle status, MachineConfig health |
+| **Platform** | OpenShift version, upgrade channel, lifecycle status, MachineConfig health, API server, etcd |
 | **Infrastructure** | Node count, conditions, roles, OS consistency, resource allocation |
-| **Security** | Cluster-admin bindings, privileged pods, RBAC patterns, SCC usage |
+| **Security** | Cluster-admin bindings, privileged pods, RBAC patterns, etcd encryption, audit logging |
 | **Networking** | CNI type, NetworkPolicies, ingress configuration |
 | **Storage** | StorageClasses, default SC, CSI driver supportability |
 | **Observability** | Monitoring configuration, user workload monitoring, operator status |
@@ -30,6 +30,7 @@ The Cluster Assessment Operator is designed for consulting engagements where cus
 
 - OpenShift 4.12+
 - `oc` CLI with cluster-admin access
+- Podman (for building images)
 
 ### Quick Install
 
@@ -55,7 +56,7 @@ make deploy IMG=your-registry/cluster-assessment-operator:v1.0.0
 
 ## Usage
 
-### One-Time Assessment
+### One-Time Assessment with Multiple Report Formats
 
 ```yaml
 apiVersion: assessment.openshift.io/v1alpha1
@@ -67,6 +68,7 @@ spec:
   reportStorage:
     configMap:
       enabled: true
+      format: "json,html,pdf"  # Generate all formats
 ```
 
 Apply and check results:
@@ -77,7 +79,7 @@ oc apply -f config/samples/assessment_v1alpha1_clusterassessment.yaml
 # Watch progress
 oc get clusterassessment -w
 
-# View findings
+# View findings in CR status
 oc get clusterassessment production-assessment -o jsonpath='{.status.findings}' | jq .
 ```
 
@@ -94,6 +96,7 @@ spec:
   reportStorage:
     configMap:
       enabled: true
+      format: "json,html"
 ```
 
 ### Development Profile
@@ -109,6 +112,40 @@ spec:
     - version
     - nodes
     - security
+  reportStorage:
+    configMap:
+      enabled: true
+      format: "html"  # HTML only for quick review
+```
+
+## Report Formats
+
+The operator supports three report formats:
+
+| Format | Description | Use Case |
+|--------|-------------|----------|
+| **json** | Machine-readable JSON | Integration with other tools, automated processing |
+| **html** | Styled HTML with color-coded findings | Quick browser viewing, sharing via email |
+| **pdf** | Professional PDF with visual summaries | Executive reports, documentation, archiving |
+
+Specify multiple formats with comma separation: `format: "json,html,pdf"`
+
+### Accessing Reports
+
+```bash
+# List available report files
+oc get configmap production-assessment-report -n openshift-cluster-assessment -o jsonpath='{.data}' | jq -r 'keys'
+
+# Extract HTML report
+oc get configmap production-assessment-report -n openshift-cluster-assessment \
+  -o jsonpath='{.data.report\.html}' > report.html
+
+# Extract PDF report (stored as base64 in binaryData)
+oc get configmap production-assessment-report -n openshift-cluster-assessment \
+  -o jsonpath='{.binaryData.report\.pdf}' | base64 -d > report.pdf
+
+# Open HTML in browser
+open report.html
 ```
 
 ## Baseline Profiles
@@ -133,14 +170,30 @@ Relaxed requirements for dev/test environments:
 - Privileged containers allowed
 - Updates expected within 180 days
 
+## Validators
+
+The operator includes 9 validators:
+
+| Validator | Category | Checks |
+|-----------|----------|--------|
+| `version` | Platform | OpenShift version, upgrade channel, update availability, lifecycle status |
+| `nodes` | Infrastructure | Node count, conditions, roles, OS consistency, resource pressure |
+| `machineconfig` | Platform | MachineConfigPool health, custom MachineConfigs |
+| `apiserver` | Platform | API server status, etcd health, encryption, audit logging |
+| `security` | Security | Cluster-admin bindings, privileged pods, RBAC patterns |
+| `networking` | Networking | CNI type, NetworkPolicies, ingress configuration |
+| `storage` | Storage | StorageClasses, default SC, CSI drivers |
+| `monitoring` | Observability | Monitoring config, user workload monitoring |
+| `deprecation` | Compatibility | Deprecated patterns, missing probes, resource limits |
+
 ## Report Structure
 
-Reports include:
+Reports include cluster info, summary with score, and detailed findings:
 
 ```json
 {
   "metadata": {
-    "generatedAt": "2024-01-15T10:30:00Z",
+    "generatedAt": "2026-01-14T10:30:00Z",
     "profile": "production"
   },
   "clusterInfo": {
@@ -149,10 +202,11 @@ Reports include:
     "nodeCount": 9
   },
   "summary": {
-    "totalChecks": 35,
-    "passCount": 25,
-    "warnCount": 7,
-    "failCount": 2,
+    "totalChecks": 40,
+    "passCount": 28,
+    "warnCount": 8,
+    "failCount": 3,
+    "infoCount": 1,
     "score": 78
   },
   "findings": [
@@ -227,7 +281,7 @@ Edit `pkg/profiles/profiles.go` to add new threshold fields and configure them p
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                    Report Generator                          │
-│  - JSON/YAML output                                         │
+│  - JSON / HTML / PDF output                                 │
 │  - CR status / ConfigMap / Git                              │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -251,8 +305,14 @@ make run
 # Run tests
 make test
 
-# Build
+# Build binary
 make build
+
+# Build container image
+make podman-build
+
+# Push container image
+make podman-push
 ```
 
 ## License

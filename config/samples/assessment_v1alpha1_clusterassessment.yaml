@@ -13,3 +13,5 @@ spec:
     configMap:
       enabled: true
       name: production-assessment-report
+      # Generate JSON, HTML, and PDF reports
+      format: "json,html,pdf"

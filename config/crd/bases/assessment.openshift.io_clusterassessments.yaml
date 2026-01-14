@@ -87,6 +87,10 @@ spec:
                           type: boolean
                         name:
                           type: string
+                        format:
+                          type: string
+                          description: Report format(s) to generate. Options are json, html, pdf or combinations like "json,html,pdf"
+                          default: "json"
                     git:
                       type: object
                       properties:
