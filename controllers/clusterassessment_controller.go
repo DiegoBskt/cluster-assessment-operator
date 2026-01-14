@@ -443,10 +443,11 @@ func (r *ClusterAssessmentReconciler) storeReportInConfigMap(ctx context.Context
 		}
 	}
 
-	// Determine ConfigMap name
+	// Determine ConfigMap name - add timestamp to avoid overwriting previous reports
 	cmName := assessment.Spec.ReportStorage.ConfigMap.Name
 	if cmName == "" {
-		cmName = fmt.Sprintf("%s-report", assessment.Name)
+		timestamp := time.Now().Format("20060102-150405")
+		cmName = fmt.Sprintf("%s-report-%s", assessment.Name, timestamp)
 	}
 
 	// Create or update ConfigMap
@@ -506,14 +507,24 @@ func (r *ClusterAssessmentReconciler) exportToGit(ctx context.Context, assessmen
 	return nil
 }
 
-// updateStatus updates the assessment status.
+// updateStatus updates the assessment status with retry on conflict.
 func (r *ClusterAssessmentReconciler) updateStatus(ctx context.Context, assessment *assessmentv1alpha1.ClusterAssessment, phase, message string) (ctrl.Result, error) {
-	assessment.Status.Phase = phase
-	assessment.Status.Message = message
-
-	if err := r.Status().Update(ctx, assessment); err != nil {
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		// Fetch latest version
+		latest := &assessmentv1alpha1.ClusterAssessment{}
+		if err := r.Get(ctx, client.ObjectKeyFromObject(assessment), latest); err != nil {
+			return err
+		}
+		latest.Status.Phase = phase
+		latest.Status.Message = message
+		return r.Status().Update(ctx, latest)
+	})
+	if err != nil {
 		return ctrl.Result{}, err
 	}
+	// Update the local copy
+	assessment.Status.Phase = phase
+	assessment.Status.Message = message
 	return ctrl.Result{}, nil
 }
 
