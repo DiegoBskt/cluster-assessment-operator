@@ -1,6 +1,6 @@
 run:
   timeout: 5m
-  go: "1.23" # golangci-lint target version (for compatibility)
+  go: "1.23"
 
 linters:
   enable:
@@ -20,16 +20,13 @@ linters-settings:
     enable-all: true
     disable:
       - fieldalignment
-  staticcheck:
-    checks: ["all"]
 
 issues:
   exclude-rules:
-    # Ignore test files
     - path: _test\.go
       linters:
         - errcheck
-    # Ignore generated files
     - path: zz_generated
       linters:
-        - all
+        - errcheck
+        - govet
