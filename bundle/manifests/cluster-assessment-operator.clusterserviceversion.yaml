@@ -64,6 +64,11 @@ spec:
               - urn:alm:descriptor:com.tectonic.ui:select:PASS
               - urn:alm:descriptor:com.tectonic.ui:select:WARN
               - urn:alm:descriptor:com.tectonic.ui:select:FAIL
+          - description: Configure where assessment reports are stored (ConfigMap or Git)
+            displayName: Report Storage
+            path: reportStorage
+            x-descriptors:
+              - urn:alm:descriptor:com.tectonic.ui:fieldGroup:reportStorage
         statusDescriptors:
           - description: Current phase of the assessment
             displayName: Phase

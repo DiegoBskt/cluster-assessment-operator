@@ -121,8 +121,10 @@ test-coverage: ## Run tests with coverage report.
 	@echo "Coverage report generated: coverage.html"
 
 .PHONY: preflight
-preflight: ## Run Red Hat Preflight certification checks.
-	preflight check container $(IMG) --docker-config ~/.docker/config.json
+preflight: ## Run Red Hat Preflight certification checks (containerized).
+	podman run --rm \
+		-v $(HOME)/.docker/config.json:/root/.docker/config.json:ro \
+		quay.io/opdev/preflight:stable check container $(IMG)
 
 ##@ Dependencies
 

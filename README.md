@@ -188,7 +188,7 @@ make bundle-build BUNDLE_IMG=your-registry/cluster-assessment-operator-bundle:v1
 # Run scorecard tests
 make scorecard
 
-# Run Red Hat Preflight certification
+# Run Red Hat Preflight certification (uses containerized preflight, works on macOS/Linux)
 make preflight
 ```
 
@@ -196,6 +196,25 @@ make preflight
 - ClusterServiceVersion with spec/status descriptors
 - Scorecard configuration for OLM validation
 - Multi-architecture support (amd64, arm64)
+- Red Hat UBI9 base image for certification compliance
+
+### Red Hat Certification
+
+The operator is prepared for Red Hat certification with:
+
+| Requirement | Status |
+|-------------|--------|
+| UBI base image | ✅ `ubi9/ubi-micro` |
+| Required labels | ✅ name, vendor, version, release, summary, description, maintainer |
+| License directory | ✅ `/licenses/LICENSE` |
+| Non-root execution | ✅ USER 65532 |
+| Scorecard tests | ✅ All passing |
+
+**Certification workflow:**
+1. Run `make scorecard` - validate OLM bundle
+2. Run `make preflight` - validate container image
+3. Submit to [community-operators](https://github.com/k8s-operatorhub/community-operators)
+4. Register at [Red Hat Partner Connect](https://connect.redhat.com) for certified catalog
 
 ## 📚 Documentation
 
