@@ -3,27 +3,83 @@
 [![Go Version](https://img.shields.io/badge/Go-1.25-blue.svg)](https://golang.org)
 [![OpenShift](https://img.shields.io/badge/OpenShift-4.12+-red.svg)](https://www.redhat.com/en/technologies/cloud-computing/openshift)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+[![OLM](https://img.shields.io/badge/OLM-Ready-green.svg)](bundle/)
+[![Red Hat Certified](https://img.shields.io/badge/Red%20Hat-Certification%20Ready-ee0000.svg)](docs/upgrade.md)
 
 A Kubernetes Operator for Red Hat OpenShift that performs **read-only** assessments of cluster configuration and generates human-readable reports highlighting configuration gaps, unsupported settings, and improvement opportunities.
 
 ## 🎯 Overview
 
-The Cluster Assessment Operator is designed for consulting engagements where customers need visibility into their OpenShift cluster's configuration health. It provides:
+The Cluster Assessment Operator is designed for consulting engagements where customers need visibility into their OpenShift cluster's configuration health.
 
-- **Read-only assessments**: No automatic remediation or configuration changes
-- **12 Validators**: Comprehensive checks across platform, security, networking, storage, and more  
-- **Multiple report formats**: JSON, HTML, and PDF output
-- **Baseline profiles**: Production (strict) and Development (relaxed) thresholds
-- **Scheduled assessments**: On-demand or cron-based execution
-- **Prometheus metrics**: Export assessment results as metrics for alerting
-- **Severity filtering**: Focus on WARN/FAIL findings only
+### Key Features
 
-## ✨ Features
+| Feature | Description |
+|---------|-------------|
+| 🔍 **Read-only** | No automatic remediation or configuration changes |
+| 📊 **12 Validators** | Comprehensive checks across platform, security, networking, storage |
+| 📄 **Multiple Formats** | JSON, HTML, and PDF report output |
+| ⏰ **Scheduling** | On-demand or cron-based assessments |
+| 📈 **Prometheus Metrics** | Export scores and findings for alerting |
+| 🎚️ **Severity Filtering** | Focus on WARN/FAIL findings only |
+| 🏷️ **Baseline Profiles** | Production (strict) vs Development (relaxed) |
 
-### Validators
+---
 
-| Validator | Category | Checks |
-|-----------|----------|--------|
+## 📦 Quick Start
+
+### 1. Install the Operator
+
+```bash
+# Clone and deploy
+git clone https://github.com/diegobskt/cluster-assessment-operator.git
+cd cluster-assessment-operator
+
+# Install CRDs and RBAC
+oc apply -f config/crd/bases/
+oc apply -f config/rbac/
+oc apply -f config/manager/
+```
+
+### 2. Run Your First Assessment
+
+```bash
+# Create a quick assessment
+cat <<EOF | oc apply -f -
+apiVersion: assessment.openshift.io/v1alpha1
+kind: ClusterAssessment
+metadata:
+  name: my-assessment
+spec:
+  profile: production
+  reportStorage:
+    configMap:
+      enabled: true
+      format: "html"
+EOF
+
+# Watch progress
+oc get clusterassessment my-assessment -w
+```
+
+### 3. View the Report
+
+```bash
+# Get findings summary
+oc get clusterassessment my-assessment
+
+# Extract HTML report
+oc get configmap my-assessment-report -n openshift-cluster-assessment \
+  -o jsonpath='{.data.report\.html}' > report.html
+open report.html
+```
+
+---
+
+## 🔍 Validators
+
+| Validator | Category | What It Checks |
+|-----------|----------|----------------|
 | `version` | Platform | OpenShift version, upgrade channel, update availability |
 | `nodes` | Infrastructure | Node count, conditions, roles, OS consistency |
 | `machineconfig` | Platform | MachineConfigPool health, custom MachineConfigs |
@@ -37,186 +93,173 @@ The Cluster Assessment Operator is designed for consulting engagements where cus
 | `monitoring` | Observability | Cluster monitoring, user workload monitoring |
 | `deprecation` | Compatibility | Deprecated patterns, missing probes |
 
-### Prometheus Metrics
+---
 
-```
-cluster_assessment_score{assessment_name, profile}
-cluster_assessment_findings_total{assessment_name, status}
-cluster_assessment_findings_by_category{assessment_name, category, status}
-cluster_assessment_validator_findings{assessment_name, validator, status}
-cluster_assessment_last_run_timestamp{assessment_name}
-cluster_assessment_duration_seconds{assessment_name}
-cluster_assessment_cluster_info{cluster_id, cluster_version, platform, channel}
-```
-
-## 📦 Installation
-
-### Prerequisites
-
-- OpenShift 4.12+
-- `oc` CLI with cluster-admin access
-- Podman (for building images)
-
-### Quick Install
-
-```bash
-# Apply all manifests
-oc apply -f config/crd/bases/
-oc apply -f config/rbac/
-oc apply -f config/manager/
-```
-
-### Build from Source
-
-```bash
-# Build single-arch image
-make podman-build IMG=your-registry/cluster-assessment-operator:v1.0.0
-
-# Build multi-arch image (amd64 + arm64)
-make podman-buildx IMG=your-registry/cluster-assessment-operator:v1.0.0
-
-# Push and deploy
-make podman-push IMG=your-registry/cluster-assessment-operator:v1.0.0
-make deploy IMG=your-registry/cluster-assessment-operator:v1.0.0
-```
-
-## 🚀 Usage
-
-### Quick Assessment
+## 📋 ClusterAssessment Spec
 
 ```yaml
 apiVersion: assessment.openshift.io/v1alpha1
 kind: ClusterAssessment
 metadata:
-  name: production-assessment
+  name: example
 spec:
+  # Assessment profile: "production" (strict) or "development" (relaxed)
   profile: production
-  reportStorage:
-    configMap:
-      enabled: true
-      format: "json,html,pdf"
-```
-
-```bash
-oc apply -f examples/full-production-assessment.yaml
-oc get clusterassessment -w
-```
-
-### Severity Filtering
-
-Only include WARN and FAIL findings:
-
-```yaml
-spec:
-  profile: production
-  minSeverity: WARN
-  reportStorage:
-    configMap:
-      enabled: true
-      format: "html"
-```
-
-### Scheduled Assessment
-
-```yaml
-spec:
+  
+  # Optional: Cron schedule for recurring assessments
   schedule: "0 2 * * 0"  # Every Sunday at 2 AM
-  profile: production
+  
+  # Optional: Minimum severity to include (INFO, PASS, WARN, FAIL)
+  minSeverity: WARN
+  
+  # Optional: List of specific validators to run (empty = all)
+  validators:
+    - version
+    - nodes
+    - security
+  
+  # Report storage configuration
+  reportStorage:
+    configMap:
+      enabled: true
+      name: my-report        # Optional custom name
+      format: "json,html,pdf"  # Formats to generate
 ```
 
-### Accessing Reports
-
-```bash
-# List report files
-oc get configmap <name>-report -n openshift-cluster-assessment -o jsonpath='{.data}' | jq 'keys'
-
-# Extract HTML report
-oc get configmap <name>-report -n openshift-cluster-assessment \
-  -o jsonpath='{.data.report\.html}' > report.html
-
-# Extract PDF report
-oc get configmap <name>-report -n openshift-cluster-assessment \
-  -o jsonpath='{.binaryData.report\.pdf}' | base64 -d > report.pdf
-```
+---
 
 ## 📊 Baseline Profiles
 
-### Production Profile
-Strict enterprise requirements:
-- Minimum 3 control plane nodes
-- Minimum 3 worker nodes  
-- Network policies required
-- No privileged containers
-- Updates within 90 days
+| Setting | Production | Development |
+|---------|------------|-------------|
+| Min control plane nodes | 3 | 1 |
+| Min worker nodes | 3 | 1 |
+| Network policies required | Yes | No |
+| Privileged containers | Blocked | Allowed |
+| Max update age | 90 days | 180 days |
 
-### Development Profile
-Relaxed for dev/test:
-- Single node supported
-- Privileged containers allowed
-- Updates within 180 days
+---
 
-## 🔧 Development
+## 📈 Prometheus Metrics
+
+The operator exposes metrics at `/metrics`:
+
+```promql
+# Overall assessment score (0-100)
+cluster_assessment_score{assessment_name="my-assessment", profile="production"}
+
+# Findings by status
+cluster_assessment_findings_total{assessment_name="my-assessment", status="FAIL"}
+
+# Findings by category
+cluster_assessment_findings_by_category{category="Security", status="WARN"}
+
+# Last run timestamp
+cluster_assessment_last_run_timestamp{assessment_name="my-assessment"}
+
+# Assessment duration
+cluster_assessment_duration_seconds{assessment_name="my-assessment"}
+```
+
+**Example Alert:**
+```yaml
+- alert: ClusterAssessmentScoreLow
+  expr: cluster_assessment_score < 70
+  for: 1h
+  labels:
+    severity: warning
+  annotations:
+    summary: "Cluster assessment score is below 70%"
+```
+
+---
+
+## 🛠️ Development
+
+### Build Commands
+
+| Command | Description |
+|---------|-------------|
+| `make build` | Build manager binary |
+| `make test` | Run unit tests |
+| `make test-coverage` | Run tests with coverage report |
+| `make lint` | Run golangci-lint |
+| `make podman-build` | Build container for amd64 |
+| `make podman-buildx` | Build + push multi-arch (amd64/arm64) |
+
+### Run Locally
 
 ```bash
-# Run tests
-make test
-
-# Run tests with coverage
-make test-coverage
-
-# Lint code
-make lint
-
-# Build binary
-make build
-
-# Run locally
+# Against a remote cluster
+export KUBECONFIG=~/.kube/config
 make run
 ```
 
+---
+
 ## 📋 OLM / OperatorHub
 
-The operator includes full OLM support:
+### Bundle Commands
 
 ```bash
-# Generate bundle
-make bundle
-
-# Build bundle image
-make bundle-build BUNDLE_IMG=your-registry/cluster-assessment-operator-bundle:v1.0.0
-
-# Run scorecard tests
-make scorecard
-
-# Run Red Hat Preflight certification (uses containerized preflight, works on macOS/Linux)
-make preflight
+make bundle          # Generate OLM bundle
+make bundle-build    # Build bundle image
+make scorecard       # Run OLM scorecard tests
+make preflight       # Run Red Hat Preflight checks
 ```
 
-### Bundle Contents
-- ClusterServiceVersion with spec/status descriptors
-- Scorecard configuration for OLM validation
-- Multi-architecture support (amd64, arm64)
-- Red Hat UBI9 base image for certification compliance
-
-### Red Hat Certification
-
-The operator is prepared for Red Hat certification with:
+### Red Hat Certification Status
 
 | Requirement | Status |
 |-------------|--------|
 | UBI base image | ✅ `ubi9/ubi-micro` |
-| Required labels | ✅ name, vendor, version, release, summary, description, maintainer |
+| Required labels | ✅ All 7 labels |
 | License directory | ✅ `/licenses/LICENSE` |
 | Non-root execution | ✅ USER 65532 |
 | Scorecard tests | ✅ All passing |
+| Multi-arch | ✅ amd64 + arm64 |
 
-**Certification workflow:**
-1. Run `make scorecard` - validate OLM bundle
-2. Run `make preflight` - validate container image
-3. Submit to [community-operators](https://github.com/k8s-operatorhub/community-operators)
-4. Register at [Red Hat Partner Connect](https://connect.redhat.com) for certified catalog
+---
 
-## 📚 Documentation
+## 🏗️ Architecture
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│                    ClusterAssessment CR                       │
+└──────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌──────────────────────────────────────────────────────────────┐
+│                   Assessment Controller                       │
+│  • Reconciles ClusterAssessment resources                    │
+│  • Triggers validators, calculates scores                    │
+│  • Records Prometheus metrics                                │
+└──────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌──────────────────────────────────────────────────────────────┐
+│              Validator Registry (12 validators)               │
+└──────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌──────────────────────────────────────────────────────────────┐
+│     Report Generator (JSON / HTML / PDF → ConfigMap)         │
+└──────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 🔒 Security
+
+- **Read-only RBAC**: Only `get`, `list`, `watch` on cluster resources
+- **UBI base image**: Red Hat Universal Base Image for certification
+- **Non-root container**: Runs as USER 65532
+- **No privilege escalation**: `allowPrivilegeEscalation: false`
+- **Seccomp**: `RuntimeDefault` profile enabled
+
+---
+
+## 📚 Additional Documentation
 
 | Document | Description |
 |----------|-------------|
@@ -224,50 +267,17 @@ The operator is prepared for Red Hat certification with:
 | [Upgrade Guide](docs/upgrade.md) | Version upgrade procedures |
 | [Examples](examples/) | Sample ClusterAssessment resources |
 
-## 🏗️ Architecture
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    ClusterAssessment CR                      │
-│  (spec: profile, schedule, validators, minSeverity)         │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                   Assessment Controller                      │
-│  - Triggers assessments (on-demand or scheduled)            │
-│  - Coordinates validators, filters by severity              │
-│  - Records Prometheus metrics                               │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                 Validator Registry (12 validators)           │
-│  version, nodes, operators, security, networking, ...       │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    Report Generator                          │
-│  - JSON / HTML / PDF output                                 │
-│  - ConfigMap storage                                        │
-└─────────────────────────────────────────────────────────────┘
-```
-
-## 🔒 Security
-
-- **Read-only RBAC**: Only `get`, `list`, `watch` on cluster resources
-- **Minimal container**: Distroless base image, non-root user
-- **No privilege escalation**: `allowPrivilegeEscalation: false`
-- **Seccomp**: `RuntimeDefault` profile enabled
+---
 
 ## 🤝 Contributing
 
 1. Fork the repository
-2. Create a feature branch
-3. Run tests: `make test`
+2. Create a feature branch: `git checkout -b feature/my-feature`
+3. Run tests: `make test && make lint`
 4. Submit a pull request
+
+---
 
 ## 📄 License
 
-Apache License 2.0
+[Apache License 2.0](LICENSE)
