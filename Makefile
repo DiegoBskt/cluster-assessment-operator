@@ -50,7 +50,11 @@ run: fmt vet ## Run a controller from your host.
 	go run ./main.go
 
 .PHONY: podman-build
-podman-build: ## Build container image with the manager.
+podman-build: ## Build container image for amd64 (OpenShift default).
+	podman build --platform linux/amd64 -t ${IMG} .
+
+.PHONY: podman-build-local
+podman-build-local: ## Build container image for local architecture.
 	podman build -t ${IMG} .
 
 .PHONY: podman-push
@@ -58,9 +62,13 @@ podman-push: ## Push container image with the manager.
 	podman push ${IMG}
 
 .PHONY: podman-buildx
-podman-buildx: ## Build and push container image for cross-platform support.
-	podman build --platform linux/amd64,linux/arm64 --manifest ${IMG} .
-	podman manifest push ${IMG}
+podman-buildx: ## Build and push multi-arch manifest (amd64 + arm64).
+	-podman rmi ${IMG} 2>/dev/null || true
+	-podman manifest rm ${IMG} 2>/dev/null || true
+	podman manifest create ${IMG}
+	podman build --platform linux/amd64 --manifest ${IMG} .
+	podman build --platform linux/arm64 --manifest ${IMG} .
+	podman manifest push --all ${IMG}
 
 ##@ Deployment
 
