@@ -89,8 +89,12 @@ func (r *ClusterAssessmentReconciler) Reconcile(ctx context.Context, req ctrl.Re
 func (r *ClusterAssessmentReconciler) reconcileOneTime(ctx context.Context, assessment *assessmentv1alpha1.ClusterAssessment) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 
-	// Skip if already completed
+	// Skip if already completed or currently running
 	if assessment.Status.Phase == assessmentv1alpha1.PhaseCompleted {
+		return ctrl.Result{}, nil
+	}
+	if assessment.Status.Phase == assessmentv1alpha1.PhaseRunning {
+		logger.Info("Assessment already running, skipping")
 		return ctrl.Result{}, nil
 	}
 
