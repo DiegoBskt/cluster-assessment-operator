@@ -1,0 +1,26 @@
+---
+schema: olm.package
+name: cluster-assessment-operator
+defaultChannel: stable
+---
+schema: olm.channel
+name: stable
+package: cluster-assessment-operator
+entries:
+  - name: cluster-assessment-operator.v1.0.0
+---
+schema: olm.channel
+name: alpha
+package: cluster-assessment-operator
+entries:
+  - name: cluster-assessment-operator.v1.0.0
+---
+schema: olm.bundle
+name: cluster-assessment-operator.v1.0.0
+package: cluster-assessment-operator
+image: ghcr.io/diegobskt/cluster-assessment-operator-bundle:v1.0.0
+properties:
+  - type: olm.package
+    value:
+      packageName: cluster-assessment-operator
+      version: 1.0.0

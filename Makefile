@@ -130,32 +130,73 @@ bundle-buildx: ## Build and push multi-arch bundle (amd64 + arm64).
 	podman build --platform linux/arm64 -f bundle.Dockerfile --manifest $(BUNDLE_IMG) .
 	podman manifest push --all $(BUNDLE_IMG)
 
-CATALOG_IMG ?= ghcr.io/diegobskt/cluster-assessment-operator-catalog:v1.0.0
+CATALOG_IMG ?= ghcr.io/diegobskt/cluster-assessment-operator-catalog
+
+# OCP versions to build catalogs for (Red Hat OperatorHub requirement)
+OCP_VERSIONS ?= v4.12 v4.13 v4.14 v4.15 v4.16 v4.17 v4.18 v4.19 v4.20
+OPERATOR_NAME ?= cluster-assessment-operator
+
+##@ File Based Catalog (FBC) - Red Hat OperatorHub Compatible
+
+.PHONY: catalogs
+catalogs: ## Generate FBC catalogs from templates for all OCP versions.
+	@for version in $(OCP_VERSIONS); do \
+		echo "Generating catalog for $$version..."; \
+		mkdir -p catalogs/$$version/$(OPERATOR_NAME); \
+		opm alpha render-template basic catalog-templates/$$version.yaml -o yaml > catalogs/$$version/$(OPERATOR_NAME)/catalog.yaml; \
+	done
+	@echo "Catalogs generated for: $(OCP_VERSIONS)"
+
+.PHONY: catalog-validate
+catalog-validate: ## Validate all FBC catalogs.
+	@for version in $(OCP_VERSIONS); do \
+		echo "Validating catalog for $$version..."; \
+		opm validate catalogs/$$version; \
+	done
+	@echo "All catalogs validated successfully!"
 
 .PHONY: catalog-build
-catalog-build: ## Build the catalog image for amd64 (OpenShift default).
-	opm index add --bundles $(BUNDLE_IMG) --generate --out-dockerfile catalog.Dockerfile --container-tool podman
-	podman build --platform linux/amd64 -f catalog.Dockerfile -t $(CATALOG_IMG) .
-	rm -f catalog.Dockerfile
+catalog-build: ## Build FBC catalog images for all OCP versions (amd64).
+	@for version in $(OCP_VERSIONS); do \
+		echo "Building catalog image for $$version..."; \
+		podman build --platform linux/amd64 \
+			--build-arg OCP_VERSION=$$version \
+			--build-arg OPERATOR_NAME=$(OPERATOR_NAME) \
+			-f catalog.Dockerfile \
+			-t $(CATALOG_IMG):$$version .; \
+	done
+	@echo "Catalog images built: $(OCP_VERSIONS)"
 
 .PHONY: catalog-build-local
-catalog-build-local: ## Build the catalog image for local architecture.
-	opm index add --bundles $(BUNDLE_IMG) --tag $(CATALOG_IMG) --container-tool podman
+catalog-build-local: ## Build FBC catalog images for local architecture.
+	@for version in $(OCP_VERSIONS); do \
+		echo "Building catalog image for $$version (local arch)..."; \
+		podman build \
+			--build-arg OCP_VERSION=$$version \
+			--build-arg OPERATOR_NAME=$(OPERATOR_NAME) \
+			-f catalog.Dockerfile \
+			-t $(CATALOG_IMG):$$version .; \
+	done
 
 .PHONY: catalog-push
-catalog-push: ## Push the catalog image.
-	podman push $(CATALOG_IMG)
+catalog-push: ## Push all catalog images to registry.
+	@for version in $(OCP_VERSIONS); do \
+		echo "Pushing catalog image for $$version..."; \
+		podman push $(CATALOG_IMG):$$version; \
+	done
+	@echo "All catalog images pushed!"
 
-.PHONY: catalog-buildx
-catalog-buildx: ## Build and push multi-arch catalog (amd64 + arm64).
-	opm index add --bundles $(BUNDLE_IMG) --generate --out-dockerfile catalog.Dockerfile --container-tool podman
-	-podman rmi $(CATALOG_IMG) 2>/dev/null || true
-	-podman manifest rm $(CATALOG_IMG) 2>/dev/null || true
-	podman manifest create $(CATALOG_IMG)
-	podman build --platform linux/amd64 -f catalog.Dockerfile --manifest $(CATALOG_IMG) .
-	podman build --platform linux/arm64 -f catalog.Dockerfile --manifest $(CATALOG_IMG) .
-	podman manifest push --all $(CATALOG_IMG)
-	rm -f catalog.Dockerfile
+.PHONY: catalog-build-single
+catalog-build-single: ## Build catalog for single OCP version. Usage: make catalog-build-single OCP_VERSION=v4.14
+ifndef OCP_VERSION
+	$(error OCP_VERSION is required. Usage: make catalog-build-single OCP_VERSION=v4.14)
+endif
+	opm validate catalogs/$(OCP_VERSION)
+	podman build --platform linux/amd64 \
+		--build-arg OCP_VERSION=$(OCP_VERSION) \
+		--build-arg OPERATOR_NAME=$(OPERATOR_NAME) \
+		-f catalog.Dockerfile \
+		-t $(CATALOG_IMG):$(OCP_VERSION) .
 
 .PHONY: deploy-olm
 deploy-olm: ## Deploy the operator via OLM using operator-sdk.
