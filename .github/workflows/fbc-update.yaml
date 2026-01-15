@@ -26,6 +26,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: main
           fetch-depth: 0
 
       - name: Determine version
@@ -124,6 +125,7 @@ jobs:
         uses: peter-evans/create-pull-request@v5
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          base: main
           commit-message: "chore: update FBC catalogs for ${{ steps.version.outputs.version }}"
           title: "Update FBC catalogs for ${{ steps.version.outputs.version }}"
           body: |
