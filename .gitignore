@@ -41,5 +41,5 @@ debug
 # OPM/Catalog build artifacts
 database/
 bundle-*/
-catalog.Dockerfile
 index.db
+
