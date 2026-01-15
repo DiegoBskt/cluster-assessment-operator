@@ -51,9 +51,9 @@ jobs:
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           BUNDLE_IMG="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-bundle:${VERSION}"
-          
+
           echo "Updating catalog templates for version: $VERSION"
-          
+
           for template in catalog-templates/v4.*.yaml; do
             echo "Updating $template..."
             sed -i "s/cluster-assessment-operator.v[0-9]*\.[0-9]*\.[0-9]*/cluster-assessment-operator.${VERSION}/g" "$template"
@@ -65,41 +65,40 @@ jobs:
           VERSION="${{ steps.version.outputs.version }}"
           BUNDLE_IMG="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-bundle:${VERSION}"
           SEMVER="${VERSION#v}"
-          
+
           for version in v4.12 v4.13 v4.14 v4.15 v4.16 v4.17 v4.18 v4.19 v4.20; do
             if [ -f "catalog-templates/$version.yaml" ]; then
               echo "Regenerating catalog for $version..."
               mkdir -p "catalogs/$version/cluster-assessment-operator"
               
-              # Create catalog with proper FBC structure
-              cat > "catalogs/$version/cluster-assessment-operator/catalog.yaml" <<EOF
----
-schema: olm.package
-name: cluster-assessment-operator
-defaultChannel: stable-v1
----
-schema: olm.channel
-name: stable-v1
-package: cluster-assessment-operator
-entries:
-  - name: cluster-assessment-operator.${VERSION}
----
-schema: olm.channel
-name: candidate-v1
-package: cluster-assessment-operator
-entries:
-  - name: cluster-assessment-operator.${VERSION}
----
-schema: olm.bundle
-name: cluster-assessment-operator.${VERSION}
-package: cluster-assessment-operator
-image: ${BUNDLE_IMG}
-properties:
-  - type: olm.package
-    value:
-      packageName: cluster-assessment-operator
-      version: "${SEMVER}"
-EOF
+              # Create catalog with proper FBC structure using printf
+              CATALOG_FILE="catalogs/$version/cluster-assessment-operator/catalog.yaml"
+              printf '%s\n' "---" > "$CATALOG_FILE"
+              printf '%s\n' "schema: olm.package" >> "$CATALOG_FILE"
+              printf '%s\n' "name: cluster-assessment-operator" >> "$CATALOG_FILE"
+              printf '%s\n' "defaultChannel: stable-v1" >> "$CATALOG_FILE"
+              printf '%s\n' "---" >> "$CATALOG_FILE"
+              printf '%s\n' "schema: olm.channel" >> "$CATALOG_FILE"
+              printf '%s\n' "name: stable-v1" >> "$CATALOG_FILE"
+              printf '%s\n' "package: cluster-assessment-operator" >> "$CATALOG_FILE"
+              printf '%s\n' "entries:" >> "$CATALOG_FILE"
+              printf '%s\n' "  - name: cluster-assessment-operator.${VERSION}" >> "$CATALOG_FILE"
+              printf '%s\n' "---" >> "$CATALOG_FILE"
+              printf '%s\n' "schema: olm.channel" >> "$CATALOG_FILE"
+              printf '%s\n' "name: candidate-v1" >> "$CATALOG_FILE"
+              printf '%s\n' "package: cluster-assessment-operator" >> "$CATALOG_FILE"
+              printf '%s\n' "entries:" >> "$CATALOG_FILE"
+              printf '%s\n' "  - name: cluster-assessment-operator.${VERSION}" >> "$CATALOG_FILE"
+              printf '%s\n' "---" >> "$CATALOG_FILE"
+              printf '%s\n' "schema: olm.bundle" >> "$CATALOG_FILE"
+              printf '%s\n' "name: cluster-assessment-operator.${VERSION}" >> "$CATALOG_FILE"
+              printf '%s\n' "package: cluster-assessment-operator" >> "$CATALOG_FILE"
+              printf '%s\n' "image: ${BUNDLE_IMG}" >> "$CATALOG_FILE"
+              printf '%s\n' "properties:" >> "$CATALOG_FILE"
+              printf '%s\n' "  - type: olm.package" >> "$CATALOG_FILE"
+              printf '%s\n' "    value:" >> "$CATALOG_FILE"
+              printf '%s\n' "      packageName: cluster-assessment-operator" >> "$CATALOG_FILE"
+              printf '%s\n' "      version: \"${SEMVER}\"" >> "$CATALOG_FILE"
             fi
           done
 
@@ -129,11 +128,11 @@ EOF
           title: "Update FBC catalogs for ${{ steps.version.outputs.version }}"
           body: |
             This PR automatically updates the File Based Catalog (FBC) configurations for operator version `${{ steps.version.outputs.version }}`.
-            
+
             ## Changes
             - Updated catalog templates in `catalog-templates/`
             - Regenerated catalogs in `catalogs/` for all OCP versions (v4.12-v4.20)
-            
+
             ## Validation
             All catalogs have been validated with `opm validate`.
           branch: fbc-update/${{ steps.version.outputs.version }}
