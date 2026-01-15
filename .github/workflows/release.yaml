@@ -7,7 +7,6 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
   GO_VERSION: "1.25"
 
 jobs:
@@ -17,9 +16,17 @@ jobs:
     permissions:
       contents: read
       packages: write
+    outputs:
+      image_name: ${{ steps.lowercase.outputs.image_name }}
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Convert image name to lowercase
+        id: lowercase
+        run: |
+          IMAGE_NAME=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          echo "image_name=$IMAGE_NAME" >> $GITHUB_OUTPUT
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -38,7 +45,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: ${{ env.REGISTRY }}/${{ steps.lowercase.outputs.image_name }}
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
@@ -62,7 +69,7 @@ jobs:
           file: bundle.Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-bundle:${{ github.ref_name }}
+          tags: ${{ env.REGISTRY }}/${{ steps.lowercase.outputs.image_name }}-bundle:${{ github.ref_name }}
           labels: ${{ steps.meta.outputs.labels }}
 
   create-release:
@@ -106,13 +113,13 @@ jobs:
             ### OLM Install
             ```bash
             # Using the bundle image
-            operator-sdk run bundle ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-bundle:${{ github.ref_name }}
+            operator-sdk run bundle ${{ env.REGISTRY }}/${{ needs.build-and-push.outputs.image_name }}-bundle:${{ github.ref_name }}
             ```
 
             ## Container Images
-            - Operator: `${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}`
-            - Bundle: `${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-bundle:${{ github.ref_name }}`
-            - Catalog: `${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-catalog:<ocp-version>` (v4.12-v4.20)
+            - Operator: `${{ env.REGISTRY }}/${{ needs.build-and-push.outputs.image_name }}:${{ github.ref_name }}`
+            - Bundle: `${{ env.REGISTRY }}/${{ needs.build-and-push.outputs.image_name }}-bundle:${{ github.ref_name }}`
+            - Catalog: `${{ env.REGISTRY }}/${{ needs.build-and-push.outputs.image_name }}-catalog:<ocp-version>` (v4.12-v4.20)
 
   build-catalog-images:
     name: Build and Push Catalog Images
@@ -153,7 +160,7 @@ jobs:
             OCP_VERSION=${{ matrix.ocp_version }}
             OPERATOR_NAME=cluster-assessment-operator
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-catalog:${{ matrix.ocp_version }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-catalog:${{ matrix.ocp_version }}-${{ github.ref_name }}
+            ${{ env.REGISTRY }}/${{ needs.build-and-push.outputs.image_name }}-catalog:${{ matrix.ocp_version }}
+            ${{ env.REGISTRY }}/${{ needs.build-and-push.outputs.image_name }}-catalog:${{ matrix.ocp_version }}-${{ github.ref_name }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
