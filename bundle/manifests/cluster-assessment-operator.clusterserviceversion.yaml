@@ -21,14 +21,25 @@ metadata:
           }
         }
       ]
+    # OLM Best Practices annotations
     capabilities: Basic Install
     categories: Monitoring,Developer Tools
     containerImage: ghcr.io/diegobskt/cluster-assessment-operator:v1.0.0
+    createdAt: "2026-01-15T00:00:00Z"
     description: Read-only OpenShift cluster configuration assessment operator
     operators.operatorframework.io/builder: operator-sdk-v1.34.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
     repository: https://github.com/diegobskt/cluster-assessment-operator
     support: Community
+    # Upgrade path configuration per OLM best practices:
+    # - skipRange allows direct upgrades from older versions to this version
+    # - For v1.0.0 (initial release), no skipRange needed
+    # - For v1.0.1+, use: olm.skipRange: ">=1.0.0 <1.0.1"
+    # Multi-arch support annotations
+    operatorframework.io/suggested-namespace: cluster-assessment-operator
+    operatorframework.io/arch.amd64: supported
+    operatorframework.io/arch.arm64: supported
+    operatorframework.io/os.linux: supported
   name: cluster-assessment-operator.v1.0.0
   namespace: placeholder
 spec:
@@ -400,7 +411,11 @@ spec:
     - email: support@example.com
       name: Diego
   maturity: alpha
+  # Minimum Kubernetes version - OLM best practice to specify compatibility
   minKubeVersion: 1.25.0
   provider:
     name: Community
+    url: https://github.com/diegobskt/cluster-assessment-operator
   version: 1.0.0
+  # Replaces field - required for upgrade graph (uncomment for v1.0.1+)
+  # replaces: cluster-assessment-operator.v0.9.0

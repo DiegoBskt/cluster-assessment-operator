@@ -1,16 +1,22 @@
 ---
 schema: olm.package
 name: cluster-assessment-operator
-defaultChannel: stable
+defaultChannel: stable-v1
 ---
 schema: olm.channel
-name: stable
+name: stable-v1
 package: cluster-assessment-operator
 entries:
   - name: cluster-assessment-operator.v1.0.0
 ---
 schema: olm.channel
-name: alpha
+name: candidate-v1
+package: cluster-assessment-operator
+entries:
+  - name: cluster-assessment-operator.v1.0.0
+---
+schema: olm.channel
+name: fast-v1
 package: cluster-assessment-operator
 entries:
   - name: cluster-assessment-operator.v1.0.0

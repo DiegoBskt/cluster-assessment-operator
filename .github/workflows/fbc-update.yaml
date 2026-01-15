@@ -1,0 +1,143 @@
+name: FBC Auto-Update
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Operator version to add to catalogs (e.g., v1.1.0)"
+        required: true
+        type: string
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  update-catalogs:
+    name: Update FBC Catalogs
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="${{ github.ref_name }}"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          SEMVER="${VERSION#v}"
+          echo "semver=$SEMVER" >> $GITHUB_OUTPUT
+
+      - name: Install opm
+        run: |
+          OPM_VERSION="v1.36.0"
+          curl -Lo opm "https://github.com/operator-framework/operator-registry/releases/download/${OPM_VERSION}/linux-amd64-opm"
+          chmod +x opm
+          sudo mv opm /usr/local/bin/
+
+      - name: Update catalog templates
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          BUNDLE_IMG="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-bundle:${VERSION}"
+          
+          echo "Updating catalog templates for version: $VERSION"
+          
+          for template in catalog-templates/v4.*.yaml; do
+            echo "Updating $template..."
+            sed -i "s/cluster-assessment-operator.v[0-9]*\.[0-9]*\.[0-9]*/cluster-assessment-operator.${VERSION}/g" "$template"
+            sed -i "s|ghcr.io/diegobskt/cluster-assessment-operator-bundle:v[0-9]*\.[0-9]*\.[0-9]*|${BUNDLE_IMG}|g" "$template"
+          done
+
+      - name: Regenerate FBC catalogs
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          BUNDLE_IMG="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-bundle:${VERSION}"
+          
+          for version in v4.12 v4.13 v4.14 v4.15 v4.16 v4.17 v4.18 v4.19 v4.20; do
+            if [ -f "catalog-templates/$version.yaml" ]; then
+              echo "Regenerating catalog for $version..."
+              mkdir -p "catalogs/$version/cluster-assessment-operator"
+              
+              # Create catalog with proper FBC structure
+              cat > "catalogs/$version/cluster-assessment-operator/catalog.yaml" << CATALOG_EOF
+---
+schema: olm.package
+name: cluster-assessment-operator
+defaultChannel: stable-v1
+---
+schema: olm.channel
+name: stable-v1
+package: cluster-assessment-operator
+entries:
+  - name: cluster-assessment-operator.${VERSION}
+---
+schema: olm.channel
+name: candidate-v1
+package: cluster-assessment-operator
+entries:
+  - name: cluster-assessment-operator.${VERSION}
+---
+schema: olm.bundle
+name: cluster-assessment-operator.${VERSION}
+package: cluster-assessment-operator
+image: ${BUNDLE_IMG}
+properties:
+  - type: olm.package
+    value:
+      packageName: cluster-assessment-operator
+      version: ${VERSION#v}
+CATALOG_EOF
+            fi
+          done
+
+      - name: Validate updated catalogs
+        run: |
+          echo "Validating all updated catalogs..."
+          FAILED=0
+          for version in v4.12 v4.13 v4.14 v4.15 v4.16 v4.17 v4.18 v4.19 v4.20; do
+            if [ -d "catalogs/$version" ]; then
+              if opm validate "catalogs/$version"; then
+                echo "✓ $version validated"
+              else
+                echo "✗ $version failed validation"
+                FAILED=1
+              fi
+            fi
+          done
+          if [ $FAILED -eq 1 ]; then
+            exit 1
+          fi
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: update FBC catalogs for ${{ steps.version.outputs.version }}"
+          title: "Update FBC catalogs for ${{ steps.version.outputs.version }}"
+          body: |
+            This PR automatically updates the File Based Catalog (FBC) configurations for operator version `${{ steps.version.outputs.version }}`.
+            
+            ## Changes
+            - Updated catalog templates in `catalog-templates/`
+            - Regenerated catalogs in `catalogs/` for all OCP versions (v4.12-v4.20)
+            
+            ## Validation
+            All catalogs have been validated with `opm validate`.
+          branch: fbc-update/${{ steps.version.outputs.version }}
+          delete-branch: true
+          labels: |
+            automation
+            fbc
+            catalog

@@ -1,10 +1,24 @@
 annotations:
+  # Core bundle labels (required)
   operators.operatorframework.io.bundle.mediatype.v1: registry+v1
   operators.operatorframework.io.bundle.manifests.v1: manifests/
   operators.operatorframework.io.bundle.metadata.v1: metadata/
   operators.operatorframework.io.bundle.package.v1: cluster-assessment-operator
-  operators.operatorframework.io.bundle.channels.v1: stable,alpha
-  operators.operatorframework.io.bundle.channel.default.v1: stable
+
+  # Channel configuration following OLM best practices (https://olm.operatorframework.io/docs/best-practices/channel-naming/)
+  # - stable-v1: Production-ready, officially supported versions
+  # - candidate-v1: Pre-release versions, may become stable
+  # - fast-v1: Latest features, early adopter access (optional)
+  operators.operatorframework.io.bundle.channels.v1: stable-v1,candidate-v1,fast-v1
+  operators.operatorframework.io.bundle.channel.default.v1: stable-v1
+
+  # Build metadata
   operators.operatorframework.io.metrics.builder: operator-sdk-v1.34.0
   operators.operatorframework.io.metrics.mediatype.v1: metrics+v1
   operators.operatorframework.io.metrics.project_layout: go.kubebuilder.io/v4
+
+  # Infrastructure annotations for multi-arch support
+  operatorframework.io/suggested-namespace: cluster-assessment-operator
+  operatorframework.io/arch.amd64: supported
+  operatorframework.io/arch.arm64: supported
+  operatorframework.io/os.linux: supported

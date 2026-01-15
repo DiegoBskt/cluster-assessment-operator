@@ -91,3 +91,63 @@ jobs:
           grep -q "operators.operatorframework.io.bundle.package.v1" bundle/metadata/annotations.yaml
           grep -q "operators.operatorframework.io.bundle.channels.v1" bundle/metadata/annotations.yaml
           echo "Bundle annotations are valid"
+
+      - name: Install operator-sdk
+        run: |
+          OPERATOR_SDK_VERSION="v1.34.0"
+          curl -Lo operator-sdk "https://github.com/operator-framework/operator-sdk/releases/download/${OPERATOR_SDK_VERSION}/operator-sdk_linux_amd64"
+          chmod +x operator-sdk
+          sudo mv operator-sdk /usr/local/bin/
+
+      - name: Validate bundle with operator-sdk (OLM best practice)
+        run: |
+          # Run full OperatorFramework validation suite
+          operator-sdk bundle validate ./bundle --select-optional suite=operatorframework
+          echo "Bundle validation passed!"
+
+  fbc-validation:
+    name: FBC Catalog Validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install opm
+        run: |
+          OPM_VERSION="v1.36.0"
+          curl -Lo opm "https://github.com/operator-framework/operator-registry/releases/download/${OPM_VERSION}/linux-amd64-opm"
+          chmod +x opm
+          sudo mv opm /usr/local/bin/
+
+      - name: Validate all FBC catalogs
+        run: |
+          echo "Validating FBC catalogs for all OCP versions..."
+          FAILED=0
+          for version in v4.12 v4.13 v4.14 v4.15 v4.16 v4.17 v4.18 v4.19 v4.20; do
+            if [ -d "catalogs/$version" ]; then
+              echo "Validating $version..."
+              if opm validate "catalogs/$version"; then
+                echo "✓ $version passed"
+              else
+                echo "✗ $version failed"
+                FAILED=1
+              fi
+            else
+              echo "⚠ $version catalog not found, skipping"
+            fi
+          done
+          if [ $FAILED -eq 1 ]; then
+            echo "FBC validation failed!"
+            exit 1
+          fi
+          echo "All FBC catalogs validated successfully!"
+
+      - name: Validate catalog templates
+        run: |
+          echo "Checking catalog templates exist..."
+          for version in v4.12 v4.13 v4.14 v4.15 v4.16 v4.17 v4.18 v4.19 v4.20; do
+            if [ -f "catalog-templates/$version.yaml" ]; then
+              echo "✓ Template for $version exists"
+            else
+              echo "⚠ Template for $version missing"
+            fi
+          done

@@ -1,17 +1,25 @@
 # Basic FBC catalog template for cluster-assessment-operator
-# This template is used to generate full FBC catalogs using `opm alpha render-template basic`
+# Channels per OLM best practices: https://olm.operatorframework.io/docs/best-practices/channel-naming/
+# - stable-v1: Production-ready, officially supported
+# - candidate-v1: Pre-release, may become stable
+# - fast-v1: Latest features for early adopters
 schema: olm.template.basic
 entries:
   - schema: olm.package
     name: cluster-assessment-operator
-    defaultChannel: stable
+    defaultChannel: stable-v1
   - schema: olm.channel
-    name: stable
+    name: stable-v1
     package: cluster-assessment-operator
     entries:
       - name: cluster-assessment-operator.v1.0.0
   - schema: olm.channel
-    name: alpha
+    name: candidate-v1
+    package: cluster-assessment-operator
+    entries:
+      - name: cluster-assessment-operator.v1.0.0
+  - schema: olm.channel
+    name: fast-v1
     package: cluster-assessment-operator
     entries:
       - name: cluster-assessment-operator.v1.0.0
