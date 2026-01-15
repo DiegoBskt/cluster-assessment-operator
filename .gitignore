@@ -43,3 +43,7 @@ database/
 bundle-*/
 index.db
 
+
+# Console plugin
+console-plugin/node_modules/
+console-plugin/dist/
