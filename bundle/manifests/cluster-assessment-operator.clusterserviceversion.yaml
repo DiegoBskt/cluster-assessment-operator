@@ -24,7 +24,7 @@ metadata:
     # OLM Best Practices annotations
     capabilities: Basic Install
     categories: Monitoring,Developer Tools
-    containerImage: ghcr.io/diegobskt/cluster-assessment-operator:v1.2.0
+    containerImage: ghcr.io/diegobskt/cluster-assessment-operator:v1.2.2
     createdAt: "2026-01-15T14:00:00Z"
     description: Read-only OpenShift cluster configuration assessment operator
     operators.operatorframework.io/builder: operator-sdk-v1.34.0
@@ -341,7 +341,7 @@ spec:
               spec:
                 containers:
                   - name: manager
-                    image: ghcr.io/diegobskt/cluster-assessment-operator:v1.2.0
+                    image: ghcr.io/diegobskt/cluster-assessment-operator:v1.2.2
                     imagePullPolicy: IfNotPresent
                     command:
                       - /manager
