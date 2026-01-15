@@ -94,10 +94,8 @@ jobs:
 
       - name: Install operator-sdk
         run: |
-          OPERATOR_SDK_VERSION="v1.34.0"
-          ARCH=$(uname -m)
-          if [ "$ARCH" = "x86_64" ]; then ARCH="amd64"; fi
-          curl -fsSL -o operator-sdk "https://github.com/operator-framework/operator-sdk/releases/download/${OPERATOR_SDK_VERSION}/operator-sdk_linux_${ARCH}"
+          OPERATOR_SDK_VERSION="v1.42.0"
+          curl -fsSL -o operator-sdk "https://github.com/operator-framework/operator-sdk/releases/download/${OPERATOR_SDK_VERSION}/operator-sdk_linux_amd64"
           chmod +x operator-sdk
           sudo mv operator-sdk /usr/local/bin/
           operator-sdk version
