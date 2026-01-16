@@ -10,10 +10,9 @@ import {
     SelectOption,
     SelectVariant,
     Checkbox,
-    ActionGroup,
     Alert,
 } from '@patternfly/react-core';
-import { k8sCreate } from '@openshift-console/dynamic-plugin-sdk';
+import { k8sCreate, K8sModel } from '@openshift-console/dynamic-plugin-sdk';
 
 interface CreateAssessmentModalProps {
     isOpen: boolean;
@@ -21,11 +20,15 @@ interface CreateAssessmentModalProps {
     onCreated: () => void;
 }
 
-const clusterAssessmentModel = {
-    apiVersion: 'assessment.openshift.io/v1alpha1',
+const clusterAssessmentModel: K8sModel = {
+    apiVersion: 'v1alpha1',
     apiGroup: 'assessment.openshift.io',
     kind: 'ClusterAssessment',
     plural: 'clusterassessments',
+    abbr: 'CA',
+    label: 'Cluster Assessment',
+    labelPlural: 'Cluster Assessments',
+    namespaced: false,
 };
 
 const CreateAssessmentModal: React.FC<CreateAssessmentModalProps> = ({
@@ -123,7 +126,7 @@ const CreateAssessmentModal: React.FC<CreateAssessmentModalProps> = ({
                         isRequired
                         id="assessment-name"
                         value={name}
-                        onChange={(_event, value) => setName(value)}
+                        onChange={(value) => setName(value)}
                         placeholder="my-assessment"
                     />
                 </FormGroup>
@@ -132,7 +135,7 @@ const CreateAssessmentModal: React.FC<CreateAssessmentModalProps> = ({
                         id="assessment-profile"
                         variant={SelectVariant.single}
                         isOpen={profileOpen}
-                        onToggle={(_event, isExpanded) => setProfileOpen(isExpanded)}
+                        onToggle={(isExpanded) => setProfileOpen(isExpanded)}
                         onSelect={(_event, selection) => {
                             setProfile(selection as string);
                             setProfileOpen(false);
@@ -152,13 +155,13 @@ const CreateAssessmentModal: React.FC<CreateAssessmentModalProps> = ({
                         id="format-html"
                         label="HTML Report"
                         isChecked={enableHtml}
-                        onChange={(_event, checked) => setEnableHtml(checked)}
+                        onChange={(checked) => setEnableHtml(checked)}
                     />
                     <Checkbox
                         id="format-json"
                         label="JSON Report"
                         isChecked={enableJson}
-                        onChange={(_event, checked) => setEnableJson(checked)}
+                        onChange={(checked) => setEnableJson(checked)}
                     />
                 </FormGroup>
             </Form>
