@@ -461,30 +461,47 @@ make catalog-validate
 
 ## Building Components
 
-### All-in-One Commands
+### Automated Builds vs Local Builds
 
-| Command | Description |
-|---------|-------------|
-| `make build` | Build Go binary |
-| `make podman-buildx` | Build + push multi-arch operator |
-| `make bundle-buildx` | Build + push multi-arch bundle |
-| `make catalog-build` | Build all catalog images |
+| Scenario | Build Method |
+|----------|--------------|
+| **Creating a release** | Push a git tag → GitHub Actions builds automatically |
+| **Development/testing** | Use local `make` commands |
+| **Debugging build issues** | Use local `make` commands |
 
-### Operator Image
+**For releases:** Always use GitHub Actions by pushing a tag. This ensures:
+- Consistent multi-arch builds (amd64 + arm64)
+- All catalog versions built (v4.12-v4.20)
+- Proper image signing and attestation
+- GitHub Release creation
+
+**For development/testing:** Use local builds to iterate quickly before committing.
+
+### Local Build Commands (Development Only)
+
+These commands are for **development and testing purposes only**. For releases, push a git tag instead.
+
+#### Go Binary
 
 ```bash
-# Multi-arch (amd64 + arm64)
+make build      # Build manager binary to ./bin/manager
+```
+
+#### Operator Image
+
+```bash
+# Multi-arch (amd64 + arm64) - for testing multi-arch locally
 make podman-buildx
 
 # Single arch (amd64 for OpenShift)
 make podman-build
 make podman-push
 
-# Local architecture
+# Local architecture only
 make podman-build-local
 ```
 
-### Bundle Image
+#### Bundle Image
 
 ```bash
 # Multi-arch
@@ -495,24 +512,24 @@ make bundle-build
 make bundle-push
 ```
 
-### Catalog Images
+#### Catalog Images
 
 ```bash
 # All versions
 make catalog-build
 make catalog-push
 
-# Single version
+# Single version (for testing specific OCP version)
 make catalog-build-single OCP_VERSION=v4.14
 podman push ghcr.io/diegobskt/cluster-assessment-operator-catalog:v4.14
 ```
 
-### Console Plugin Image
+#### Console Plugin Image
 
 ```bash
 cd console-plugin
-podman build -t ghcr.io/diegobskt/cluster-assessment-operator-console:v1.2.10 .
-podman push ghcr.io/diegobskt/cluster-assessment-operator-console:v1.2.10
+podman build -t ghcr.io/diegobskt/cluster-assessment-operator-console:vX.Y.Z .
+podman push ghcr.io/diegobskt/cluster-assessment-operator-console:vX.Y.Z
 ```
 
 ---
@@ -547,19 +564,118 @@ When preparing a release, update version in these files:
 ### Creating a Release
 
 ```bash
-# 1. Ensure all version updates are committed
-git status
+# 1. Ensure all version updates are committed and merged to main
+git checkout main
+git pull origin main
 
 # 2. Create and push tag
-git tag v1.2.10
-git push origin v1.2.10
+git tag vX.Y.Z
+git push origin vX.Y.Z
 ```
 
-This triggers GitHub Actions to:
-- Build multi-arch operator image
-- Build multi-arch bundle image
-- Build catalog images for all OCP versions (v4.12-v4.20)
-- Create GitHub Release with install.yaml
+This triggers GitHub Actions to **automatically build and push all images**:
+- Multi-arch operator image (`ghcr.io/diegobskt/cluster-assessment-operator:vX.Y.Z`)
+- Multi-arch bundle image (`ghcr.io/diegobskt/cluster-assessment-operator-bundle:vX.Y.Z`)
+- Catalog images for all OCP versions (`ghcr.io/diegobskt/cluster-assessment-operator-catalog:v4.12` through `v4.20`)
+- GitHub Release with install.yaml
+
+**IMPORTANT:** Do NOT build images locally for releases. GitHub Actions handles all image builds automatically when you push a tag.
+
+### Wait for Release Workflow to Complete
+
+After pushing the tag, wait for the GitHub Actions workflow to finish:
+
+```bash
+# Check workflow status
+gh run list --limit 3
+
+# Watch the release workflow (get run ID from above)
+gh run watch <run-id>
+
+# Or check in browser
+# https://github.com/diegobskt/cluster-assessment-operator/actions
+```
+
+The release workflow typically takes 5-10 minutes to build all images.
+
+### Deploy Release to OpenShift Cluster
+
+Once the GitHub Actions workflow completes successfully, deploy to your cluster:
+
+```bash
+# 1. Verify cluster access and version
+oc whoami
+oc get clusterversion version -o jsonpath='{.status.desired.version}'
+# Example output: 4.20.8 → use catalog v4.20
+
+# 2. Remove any existing installation (if upgrading)
+make cleanup-olm 2>/dev/null || true
+
+# 3. Deploy via OLM using the released catalog
+oc apply -f - <<EOF
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: CatalogSource
+metadata:
+  name: cluster-assessment-catalog
+  namespace: openshift-marketplace
+spec:
+  sourceType: grpc
+  image: ghcr.io/diegobskt/cluster-assessment-operator-catalog:v4.20  # Match your OCP version
+  displayName: Cluster Assessment Operator
+  publisher: Community
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cluster-assessment-operator
+---
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: cluster-assessment-operator
+  namespace: cluster-assessment-operator
+spec: {}
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: cluster-assessment-operator
+  namespace: cluster-assessment-operator
+spec:
+  channel: stable-v1
+  name: cluster-assessment-operator
+  source: cluster-assessment-catalog
+  sourceNamespace: openshift-marketplace
+EOF
+
+# 4. Wait for operator to be ready
+oc get csv -n cluster-assessment-operator -w
+
+# 5. Verify installation
+oc get pods -n cluster-assessment-operator
+```
+
+### Deploy a Specific Version
+
+To deploy a specific operator version (not the latest):
+
+```bash
+# Specify the starting CSV version in the subscription
+oc apply -f - <<EOF
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: cluster-assessment-operator
+  namespace: cluster-assessment-operator
+spec:
+  channel: stable-v1
+  name: cluster-assessment-operator
+  source: cluster-assessment-catalog
+  sourceNamespace: openshift-marketplace
+  startingCSV: cluster-assessment-operator.v1.2.9  # Specific version
+EOF
+```
 
 ### Pre-Release (RC/Beta/Alpha)
 
