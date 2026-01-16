@@ -44,6 +44,7 @@ rules:
       - serviceaccounts
       - persistentvolumes
       - persistentvolumeclaims
+      - resourcequotas
     verbs:
       - get
       - list
@@ -207,4 +208,4 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: cluster-assessment-operator
-    namespace: openshift-cluster-assessment
+    namespace: cluster-assessment-operator
