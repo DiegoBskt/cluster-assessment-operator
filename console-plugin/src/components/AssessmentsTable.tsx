@@ -11,7 +11,7 @@ import {
     Button,
 } from '@patternfly/react-core';
 import { Link } from 'react-router-dom';
-import { ClusterAssessment } from './AssessmentDashboard';
+import { ClusterAssessment } from '../types';
 
 interface AssessmentsTableProps {
     assessments: ClusterAssessment[];

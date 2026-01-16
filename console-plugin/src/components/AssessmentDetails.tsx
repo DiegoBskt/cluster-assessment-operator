@@ -31,9 +31,9 @@ import {
 } from '@patternfly/react-icons';
 import { useK8sWatchResource } from '@openshift-console/dynamic-plugin-sdk';
 import { Link } from 'react-router-dom';
+import { ClusterAssessment } from '../types';
 import { ScoreGauge } from './ScoreGauge';
 import { FindingsTable } from './FindingsTable';
-import { ClusterAssessment } from './AssessmentDashboard';
 import './styles.css';
 
 const clusterAssessmentResource = (name: string) => ({

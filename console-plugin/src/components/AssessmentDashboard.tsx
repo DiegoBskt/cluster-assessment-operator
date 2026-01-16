@@ -33,6 +33,7 @@ import {
 } from '@patternfly/react-icons';
 import { useK8sWatchResource } from '@openshift-console/dynamic-plugin-sdk';
 import { Link } from 'react-router-dom';
+import { ClusterAssessment } from '../types';
 import { ScoreGauge } from './ScoreGauge';
 import { AssessmentsTable } from './AssessmentsTable';
 import CreateAssessmentModal from './CreateAssessmentModal';
@@ -48,46 +49,7 @@ const clusterAssessmentResource = {
     isList: true,
 };
 
-export interface ClusterAssessment {
-    metadata: {
-        name: string;
-        creationTimestamp: string;
-    };
-    spec: {
-        profile?: string;
-        schedule?: string;
-    };
-    status?: {
-        phase?: string;
-        lastRunTime?: string;
-        summary?: {
-            score?: number;
-            passCount: number;
-            warnCount: number;
-            failCount: number;
-            infoCount: number;
-            totalChecks: number;
-        };
-        clusterInfo?: {
-            clusterVersion?: string;
-            platform?: string;
-            nodeCount?: number;
-        };
-        findings?: Array<{
-            id: string;
-            validator: string;
-            category: string;
-            resource?: string;
-            namespace?: string;
-            status: 'PASS' | 'WARN' | 'FAIL' | 'INFO';
-            title: string;
-            description: string;
-            impact?: string;
-            recommendation?: string;
-            references?: string[];
-        }>;
-    };
-}
+
 
 const AssessmentDashboard: React.FC = () => {
     const [assessments, loaded, error] = useK8sWatchResource<ClusterAssessment[]>(

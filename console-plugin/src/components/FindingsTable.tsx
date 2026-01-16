@@ -28,20 +28,7 @@ import {
     InfoCircleIcon,
     ExternalLinkAltIcon,
 } from '@patternfly/react-icons';
-
-export interface Finding {
-    id: string;
-    validator: string;
-    category: string;
-    resource?: string;
-    namespace?: string;
-    status: 'PASS' | 'WARN' | 'FAIL' | 'INFO';
-    title: string;
-    description: string;
-    impact?: string;
-    recommendation?: string;
-    references?: string[];
-}
+import { Finding } from '../types';
 
 interface FindingsTableProps {
     findings: Finding[];
