@@ -456,7 +456,7 @@ func (r *ClusterAssessmentReconciler) storeReportInConfigMap(ctx context.Context
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      cmName,
-			Namespace: "openshift-cluster-assessment",
+			Namespace: "cluster-assessment-operator",
 			Labels: map[string]string{
 				"app.kubernetes.io/name":       "cluster-assessment-operator",
 				"app.kubernetes.io/managed-by": "cluster-assessment-operator",

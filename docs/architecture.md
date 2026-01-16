@@ -349,7 +349,7 @@ erDiagram
 ```mermaid
 flowchart TB
     subgraph OpenShift["OpenShift Cluster"]
-        subgraph OperatorNS["openshift-cluster-assessment namespace"]
+        subgraph OperatorNS["cluster-assessment-operator namespace"]
             Deployment["Operator Deployment"]
             Pod["Manager Pod"]
             SA["ServiceAccount"]

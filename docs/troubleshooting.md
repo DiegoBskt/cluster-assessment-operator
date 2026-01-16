@@ -15,10 +15,10 @@ This guide helps diagnose and resolve common issues with the Cluster Assessment 
 **Resolution:**
 ```bash
 # Check operator pod status
-oc get pods -n openshift-cluster-assessment
+oc get pods -n cluster-assessment-operator
 
 # Check operator logs
-oc logs -n openshift-cluster-assessment deploy/cluster-assessment-operator
+oc logs -n cluster-assessment-operator deploy/cluster-assessment-operator
 
 # Verify RBAC is applied
 oc get clusterrole cluster-assessment-operator
@@ -38,7 +38,7 @@ oc get clusterrole cluster-assessment-operator
 **Resolution:**
 ```bash
 # Check operator logs for errors
-oc logs -n openshift-cluster-assessment deploy/cluster-assessment-operator --tail=100
+oc logs -n cluster-assessment-operator deploy/cluster-assessment-operator --tail=100
 
 # Check for API server throttling
 oc get --raw /metrics | grep apiserver_request_total
@@ -60,7 +60,7 @@ oc get --raw /metrics | grep apiserver_request_total
 oc get clusterassessment <name> -o jsonpath='{.status.message}'
 
 # Check operator logs for stack traces
-oc logs -n openshift-cluster-assessment deploy/cluster-assessment-operator | grep -A 10 "error"
+oc logs -n cluster-assessment-operator deploy/cluster-assessment-operator | grep -A 10 "error"
 ```
 
 ---
@@ -98,7 +98,7 @@ oc patch clusterassessment <name> --type=merge -p '{"spec":{"minSeverity":""}}'
 oc get clusterassessment <name> -o jsonpath='{.spec.reportStorage.configMap.enabled}'
 
 # List ConfigMaps
-oc get configmaps -n openshift-cluster-assessment | grep report
+oc get configmaps -n cluster-assessment-operator | grep report
 ```
 
 ---
@@ -114,10 +114,10 @@ oc get configmaps -n openshift-cluster-assessment | grep report
 **Resolution:**
 ```bash
 # Check if PDF data exists
-oc get configmap <name>-report -n openshift-cluster-assessment -o jsonpath='{.binaryData}' | jq -r 'keys'
+oc get configmap <name>-report -n cluster-assessment-operator -o jsonpath='{.binaryData}' | jq -r 'keys'
 
 # Properly decode
-oc get configmap <name>-report -n openshift-cluster-assessment -o jsonpath='{.binaryData.report\.pdf}' | base64 -d > report.pdf
+oc get configmap <name>-report -n cluster-assessment-operator -o jsonpath='{.binaryData.report\.pdf}' | base64 -d > report.pdf
 ```
 
 ---
@@ -157,11 +157,11 @@ oc apply -f <name>.yaml
 **Resolution:**
 ```bash
 # Check metrics endpoint
-oc port-forward -n openshift-cluster-assessment deploy/cluster-assessment-operator 8080:8080
+oc port-forward -n cluster-assessment-operator deploy/cluster-assessment-operator 8080:8080
 curl localhost:8080/metrics | grep cluster_assessment
 
 # Verify operator is exposing metrics port
-oc get deploy cluster-assessment-operator -n openshift-cluster-assessment -o yaml | grep -A 5 ports
+oc get deploy cluster-assessment-operator -n cluster-assessment-operator -o yaml | grep -A 5 ports
 ```
 
 ---
@@ -172,10 +172,10 @@ If you need to open a support ticket, collect the following:
 
 ```bash
 # Operator version and status
-oc get deploy cluster-assessment-operator -n openshift-cluster-assessment -o yaml > operator-deploy.yaml
+oc get deploy cluster-assessment-operator -n cluster-assessment-operator -o yaml > operator-deploy.yaml
 
 # Operator logs
-oc logs -n openshift-cluster-assessment deploy/cluster-assessment-operator --all-containers > operator-logs.txt
+oc logs -n cluster-assessment-operator deploy/cluster-assessment-operator --all-containers > operator-logs.txt
 
 # All ClusterAssessments
 oc get clusterassessments -o yaml > assessments.yaml

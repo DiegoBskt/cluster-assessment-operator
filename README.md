@@ -69,7 +69,7 @@ oc get clusterassessment my-assessment -w
 oc get clusterassessment my-assessment
 
 # Extract HTML report
-oc get configmap my-assessment-report -n openshift-cluster-assessment \
+oc get configmap my-assessment-report -n cluster-assessment-operator \
   -o jsonpath='{.data.report\.html}' > report.html
 open report.html
 ```
@@ -279,20 +279,20 @@ spec:
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: openshift-cluster-assessment
+  name: cluster-assessment-operator
 ---
 apiVersion: operators.coreos.com/v1
 kind: OperatorGroup
 metadata:
   name: cluster-assessment-operator
-  namespace: openshift-cluster-assessment
+  namespace: cluster-assessment-operator
 spec: {}  # AllNamespaces install mode
 ---
 apiVersion: operators.coreos.com/v1alpha1
 kind: Subscription
 metadata:
   name: cluster-assessment-operator
-  namespace: openshift-cluster-assessment
+  namespace: cluster-assessment-operator
 spec:
   channel: stable-v1
   name: cluster-assessment-operator
@@ -303,7 +303,7 @@ EOF
 
 3. Verify:
 ```bash
-oc get csv -n openshift-cluster-assessment | grep cluster-assessment
+oc get csv -n cluster-assessment-operator | grep cluster-assessment
 ```
 
 ### Red Hat Certification Status

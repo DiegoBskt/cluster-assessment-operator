@@ -46,10 +46,10 @@ oc apply -f config/rbac/
 # 3. Update operator deployment
 oc set image deploy/cluster-assessment-operator \
   manager=ghcr.io/diegobskt/cluster-assessment-operator:v1.1.0 \
-  -n openshift-cluster-assessment
+  -n cluster-assessment-operator
 
 # 4. Verify rollout
-oc rollout status deploy/cluster-assessment-operator -n openshift-cluster-assessment
+oc rollout status deploy/cluster-assessment-operator -n cluster-assessment-operator
 ```
 
 ---
@@ -76,12 +76,12 @@ oc rollout status deploy/cluster-assessment-operator -n openshift-cluster-assess
 
 1. **Check operator is running:**
    ```bash
-   oc get pods -n openshift-cluster-assessment
+   oc get pods -n cluster-assessment-operator
    ```
 
 2. **Check new version:**
    ```bash
-   oc logs -n openshift-cluster-assessment deploy/cluster-assessment-operator | head -5
+   oc logs -n cluster-assessment-operator deploy/cluster-assessment-operator | head -5
    ```
 
 3. **Run a test assessment:**
@@ -98,12 +98,12 @@ If issues occur after upgrade:
 
 ```bash
 # Rollback operator
-oc rollout undo deploy/cluster-assessment-operator -n openshift-cluster-assessment
+oc rollout undo deploy/cluster-assessment-operator -n cluster-assessment-operator
 
 # Or specify previous image
 oc set image deploy/cluster-assessment-operator \
   manager=ghcr.io/diegobskt/cluster-assessment-operator:v1.0.0 \
-  -n openshift-cluster-assessment
+  -n cluster-assessment-operator
 ```
 
 ---

@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: openshift-cluster-assessment
+  name: cluster-assessment-operator
   labels:
     openshift.io/cluster-monitoring: "true"
 ---
@@ -10,13 +10,13 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: cluster-assessment-operator
-  namespace: openshift-cluster-assessment
+  namespace: cluster-assessment-operator
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: cluster-assessment-operator
-  namespace: openshift-cluster-assessment
+  namespace: cluster-assessment-operator
   labels:
     app.kubernetes.io/name: cluster-assessment-operator
     app.kubernetes.io/component: controller
