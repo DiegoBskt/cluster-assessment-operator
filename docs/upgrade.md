@@ -4,9 +4,15 @@ This document describes how to upgrade the Cluster Assessment Operator to newer 
 
 ## Version Compatibility
 
-| Operator Version | OpenShift Versions | Channels | Breaking Changes |
-|-----------------|-------------------|----------|------------------|
-| 1.0.0 | 4.12 - 4.20 | stable-v1, candidate-v1, fast-v1 | Initial release |
+| Operator Version | OpenShift Versions | Channels | Key Changes |
+|-----------------|-------------------|----------|-------------|
+| 1.2.10 | 4.12 - 4.20 | stable-v1, candidate-v1, fast-v1 | Console plugin nginx fix for read-only filesystem |
+| 1.2.9 | 4.12 - 4.20 | stable-v1, candidate-v1, fast-v1 | New CatalogSource, controller improvements |
+| 1.2.8 | 4.12 - 4.20 | stable-v1, candidate-v1, fast-v1 | Added limitranges RBAC permission |
+| 1.2.7 | 4.12 - 4.20 | stable-v1, candidate-v1, fast-v1 | Added resourcequotas RBAC permission |
+| 1.2.0 | 4.12 - 4.20 | stable-v1, candidate-v1, fast-v1 | OpenShift Dynamic Console Plugin |
+| 1.1.0 | 4.12 - 4.20 | stable-v1, candidate-v1, fast-v1 | 6 new validators (18 total) |
+| 1.0.0 | 4.12 - 4.20 | stable-v1, candidate-v1, fast-v1 | Initial release with 12 validators |
 
 ---
 
@@ -45,7 +51,7 @@ oc apply -f config/rbac/
 
 # 3. Update operator deployment
 oc set image deploy/cluster-assessment-operator \
-  manager=ghcr.io/diegobskt/cluster-assessment-operator:v1.1.0 \
+  manager=ghcr.io/diegobskt/cluster-assessment-operator:v1.2.10 \
   -n cluster-assessment-operator
 
 # 4. Verify rollout
@@ -102,7 +108,7 @@ oc rollout undo deploy/cluster-assessment-operator -n cluster-assessment-operato
 
 # Or specify previous image
 oc set image deploy/cluster-assessment-operator \
-  manager=ghcr.io/diegobskt/cluster-assessment-operator:v1.0.0 \
+  manager=ghcr.io/diegobskt/cluster-assessment-operator:v1.2.9 \
   -n cluster-assessment-operator
 ```
 
@@ -121,6 +127,14 @@ When API versions change, the operator includes conversion webhooks to automatic
 ---
 
 ## Breaking Changes Log
+
+### v1.2.x Series
+- No breaking changes from v1.1.x
+- Console plugin introduced in v1.2.0 requires OpenShift 4.12+
+
+### v1.1.0
+- No breaking changes from v1.0.0
+- 6 new validators added (backwards compatible)
 
 ### v1.0.0 (Initial Release)
 - No breaking changes (initial release)

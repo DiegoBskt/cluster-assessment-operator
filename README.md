@@ -30,11 +30,23 @@ The Cluster Assessment Operator is designed for consulting engagements where cus
 
 ### 1. Install the Operator
 
+**Option A: Direct Deployment**
+
 ```bash
-# Clone and deploy
+# Clone the repository
 git clone https://github.com/diegobskt/cluster-assessment-operator.git
 cd cluster-assessment-operator
 
+# Deploy using make (handles order automatically)
+make deploy
+
+# Or deploy with console plugin
+make deploy-all
+```
+
+**Option B: Manual Deployment**
+
+```bash
 # Install CRDs, namespace, RBAC, and manager (order matters!)
 oc apply -f config/crd/bases/
 oc apply -f config/manager/    # Creates namespace first
@@ -358,11 +370,48 @@ flowchart TB
 
 ---
 
+## 🖥️ Console Plugin
+
+The operator includes an OpenShift Dynamic Console Plugin for visual cluster assessment management.
+
+### Enable the Console Plugin
+
+```bash
+# Deploy console plugin
+make deploy-console-plugin
+
+# Or deploy everything together
+make deploy-all
+```
+
+### Access the UI
+
+Once deployed, navigate to:
+- **OpenShift Console** → **Observe** → **Cluster Assessment**
+
+The UI provides:
+- Dashboard view of all assessments
+- Assessment details with findings table
+- Severity filtering (PASS/WARN/FAIL/INFO)
+- Category grouping
+- Health score gauge
+
+### Console Plugin Architecture
+
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| React App | `console-plugin/src/` | UI components |
+| Extensions | `console-plugin/console-extensions.json` | Console integration |
+| Deployment | `config/console-plugin/` | Kubernetes manifests |
+
+---
+
 ## 📚 Additional Documentation
 
 | Document | Description |
 |----------|-------------|
 | [Architecture](docs/architecture.md) | Visual diagrams of operator components and workflows |
+| [Development Guide](docs/development.md) | Complete development, testing, and release workflows |
 | [Troubleshooting](docs/troubleshooting.md) | Common issues and solutions |
 | [Upgrade Guide](docs/upgrade.md) | Version upgrade procedures |
 | [Contributing](CONTRIBUTING.md) | Guidelines for contributors |

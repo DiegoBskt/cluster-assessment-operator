@@ -166,6 +166,53 @@ oc get deploy cluster-assessment-operator -n cluster-assessment-operator -o yaml
 
 ---
 
+### 9. Console Plugin Not Loading
+
+**Symptoms:** The console plugin page shows error or blank screen.
+
+**Possible Causes:**
+- Console plugin pod failing to start
+- nginx configuration issues
+- ConsolePlugin CR not registered
+
+**Resolution:**
+```bash
+# Check plugin pod status
+oc get pods -n cluster-assessment-operator | grep plugin
+
+# Check plugin logs
+oc logs -n cluster-assessment-operator deploy/cluster-assessment-plugin
+
+# Verify ConsolePlugin is registered
+oc get consoleplugin cluster-assessment-plugin -o yaml
+
+# Check if plugin is enabled in console
+oc get consoles.operator.openshift.io cluster -o jsonpath='{.spec.plugins}'
+```
+
+---
+
+### 10. Console Plugin nginx Errors
+
+**Symptoms:** Plugin pod fails with nginx read-only filesystem errors.
+
+**Possible Causes:**
+- nginx trying to write to paths not mounted as writable
+
+**Error Example:**
+```
+nginx: [alert] could not open error log file: open() "/var/log/nginx/error.log" failed (30: Read-only file system)
+```
+
+**Resolution:**
+Ensure the console-plugin deployment has proper volume mounts for nginx temp directories. The nginx.conf should use:
+- `/dev/stderr` and `/dev/stdout` for logs
+- `/tmp` directory for temp files
+
+Check the deployment includes the `/tmp` emptyDir volume mount.
+
+---
+
 ## Collecting Debug Information
 
 If you need to open a support ticket, collect the following:
