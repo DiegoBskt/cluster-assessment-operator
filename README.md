@@ -332,6 +332,44 @@ oc get csv -n cluster-assessment-operator | grep cluster-assessment
 
 ---
 
+## 🖥️ Console Plugin
+
+The Cluster Assessment Operator includes an **OpenShift Console Plugin** that provides a dedicated UI under **Observe > Cluster Assessment**.
+
+### Deploy Console Plugin
+
+After deploying the operator, deploy the console plugin:
+
+```bash
+# Deploy operator + console plugin
+make deploy-all
+
+# Or deploy console plugin separately
+make deploy-console-plugin
+```
+
+### Enable the Plugin
+
+Enable the plugin in OpenShift Console:
+
+```bash
+oc patch consoles.operator.openshift.io cluster \
+  --type=merge \
+  --patch='{"spec":{"plugins":["cluster-assessment-plugin"]}}'
+```
+
+### Verify
+
+Refresh the OpenShift Console. Navigate to **Observe > Cluster Assessment** to view assessment dashboards.
+
+### Undeploy
+
+```bash
+make undeploy-all
+```
+
+---
+
 ## 🏗️ Architecture
 
 ```mermaid

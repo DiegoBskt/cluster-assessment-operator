@@ -3,6 +3,13 @@
 
 .ca-plugin__summary-card {
   height: 100%;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: box-shadow 0.2s ease-in-out;
+}
+
+.ca-plugin__summary-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
 }
 
 .ca-plugin__summary-card .pf-c-card__body {
@@ -11,18 +18,30 @@
   justify-content: center;
 }
 
+.ca-plugin__summary-card .pf-c-card__title {
+  font-weight: 600;
+  color: var(--pf-global--Color--100);
+  border-bottom: 1px solid var(--pf-global--BorderColor--100);
+  padding-bottom: var(--pf-global--spacer--sm);
+  margin-bottom: var(--pf-global--spacer--md);
+}
+
 .ca-plugin__score-gauge {
   display: flex;
   justify-content: center;
   align-items: center;
+  padding: var(--pf-global--spacer--md);
 }
 
 .ca-plugin__score-gauge svg {
-  max-width: 200px;
+  max-width: 180px;
 }
 
 .ca-plugin__findings-toolbar {
   margin-bottom: var(--pf-global--spacer--md);
+  background: var(--pf-global--BackgroundColor--100);
+  padding: var(--pf-global--spacer--sm);
+  border-radius: 4px;
 }
 
 .ca-plugin__status-icon {
@@ -32,11 +51,15 @@
 .ca-plugin__expandable-content {
   padding: var(--pf-global--spacer--lg);
   background-color: var(--pf-global--BackgroundColor--200);
+  border-radius: 4px;
+  margin-top: var(--pf-global--spacer--sm);
 }
 
 .ca-plugin__expandable-content h4 {
   margin-top: var(--pf-global--spacer--md);
   margin-bottom: var(--pf-global--spacer--sm);
+  font-weight: 600;
+  color: var(--pf-global--Color--100);
 }
 
 .ca-plugin__expandable-content h4:first-child {
@@ -59,4 +82,33 @@
 
 .ca-plugin__score--critical {
   color: var(--pf-global--danger-color--100);
+}
+
+/* Stats display */
+.ca-plugin__stat-item {
+  display: flex;
+  align-items: center;
+  gap: var(--pf-global--spacer--sm);
+  padding: var(--pf-global--spacer--xs) 0;
+}
+
+.ca-plugin__stat-value {
+  font-size: var(--pf-global--FontSize--xl);
+  font-weight: 700;
+}
+
+/* Table enhancements */
+.ca-plugin__table-row--fail {
+  background-color: rgba(201, 25, 11, 0.05);
+}
+
+.ca-plugin__table-row--warn {
+  background-color: rgba(240, 171, 0, 0.05);
+}
+
+/* Page header */
+.ca-plugin__page-header {
+  background: linear-gradient(135deg, var(--pf-global--primary-color--100) 0%, var(--pf-global--primary-color--200) 100%);
+  color: white;
+  padding: var(--pf-global--spacer--lg);
 }

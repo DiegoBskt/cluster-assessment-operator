@@ -39,6 +39,9 @@ spec:
             readOnlyRootFilesystem: true
             runAsNonRoot: true
           volumeMounts:
+            - name: tls-cert
+              mountPath: /etc/nginx/tls
+              readOnly: true
             - name: nginx-cache
               mountPath: /var/cache/nginx
             - name: nginx-run
@@ -50,6 +53,10 @@ spec:
         seccompProfile:
           type: RuntimeDefault
       volumes:
+        - name: tls-cert
+          secret:
+            secretName: cluster-assessment-plugin-cert
+            defaultMode: 420
         - name: nginx-cache
           emptyDir: {}
         - name: nginx-run

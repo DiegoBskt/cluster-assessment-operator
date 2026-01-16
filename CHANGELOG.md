@@ -7,9 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.11] - 2026-01-16
+
+### Added
+- **Create Assessment Modal**: Functional modal for creating new ClusterAssessment resources from the Console UI
+  - Profile selection (Production/Development)
+  - Report format options (HTML, JSON)
+
+### Changed
+- **Improved Console Plugin Styling**: Enhanced visual appearance with card hover effects, better typography, and status highlighting
+
 ## [1.2.10] - 2026-01-16
 
 ### Fixed
+- **Console Plugin TLS**: nginx now serves HTTPS using OpenShift-provided serving certificate
+  - Added TLS secret volume mount to deployment
+  - Configured nginx with SSL using `/etc/nginx/tls/tls.crt` and `tls.key`
 - Console plugin nginx configuration for read-only root filesystem:
   - Changed error/access logs to use `/dev/stderr` and `/dev/stdout` (container best practice)
   - Configured nginx temp paths to use `/tmp` directory
