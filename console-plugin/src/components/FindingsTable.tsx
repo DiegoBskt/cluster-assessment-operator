@@ -18,9 +18,8 @@ import {
     ToolbarItem,
     InputGroup,
     TextInput,
-    Select,
-    SelectOption,
-    SelectVariant,
+    FormSelect,
+    FormSelectOption,
 } from '@patternfly/react-core';
 import {
     CheckCircleIcon,
@@ -28,7 +27,6 @@ import {
     ExclamationCircleIcon,
     InfoCircleIcon,
     ExternalLinkAltIcon,
-    SearchIcon,
 } from '@patternfly/react-icons';
 
 export interface Finding {
@@ -82,8 +80,6 @@ export const FindingsTable: React.FC<FindingsTableProps> = ({ findings }) => {
     const [searchValue, setSearchValue] = React.useState('');
     const [severityFilter, setSeverityFilter] = React.useState<string>('All');
     const [categoryFilter, setCategoryFilter] = React.useState<string>('All');
-    const [isSeverityOpen, setIsSeverityOpen] = React.useState(false);
-    const [isCategoryOpen, setIsCategoryOpen] = React.useState(false);
 
     const categories = React.useMemo(() => {
         const cats = new Set(findings.map((f) => f.category));
@@ -187,6 +183,8 @@ export const FindingsTable: React.FC<FindingsTableProps> = ({ findings }) => {
         }));
     };
 
+    const severityOptions = ['All', 'PASS', 'WARN', 'FAIL', 'INFO'];
+
     return (
         <>
             <Toolbar id="findings-toolbar">
@@ -205,44 +203,26 @@ export const FindingsTable: React.FC<FindingsTableProps> = ({ findings }) => {
                         </InputGroup>
                     </ToolbarItem>
                     <ToolbarItem>
-                        <Select
-                            variant={SelectVariant.single}
+                        <FormSelect
                             aria-label="Filter by severity"
-                            onToggle={() => setIsSeverityOpen(!isSeverityOpen)}
-                            onSelect={(_, selection) => {
-                                setSeverityFilter(selection as string);
-                                setIsSeverityOpen(false);
-                            }}
-                            selections={severityFilter}
-                            isOpen={isSeverityOpen}
-                            placeholderText="Severity"
+                            value={severityFilter}
+                            onChange={(value) => setSeverityFilter(value)}
                         >
-                            {['All', 'PASS', 'WARN', 'FAIL', 'INFO'].map((s) => (
-                                <SelectOption key={s} value={s}>
-                                    {s}
-                                </SelectOption>
+                            {severityOptions.map((s) => (
+                                <FormSelectOption key={s} value={s} label={s} />
                             ))}
-                        </Select>
+                        </FormSelect>
                     </ToolbarItem>
                     <ToolbarItem>
-                        <Select
-                            variant={SelectVariant.single}
+                        <FormSelect
                             aria-label="Filter by category"
-                            onToggle={() => setIsCategoryOpen(!isCategoryOpen)}
-                            onSelect={(_, selection) => {
-                                setCategoryFilter(selection as string);
-                                setIsCategoryOpen(false);
-                            }}
-                            selections={categoryFilter}
-                            isOpen={isCategoryOpen}
-                            placeholderText="Category"
+                            value={categoryFilter}
+                            onChange={(value) => setCategoryFilter(value)}
                         >
                             {categories.map((c) => (
-                                <SelectOption key={c} value={c}>
-                                    {c}
-                                </SelectOption>
+                                <FormSelectOption key={c} value={c} label={c} />
                             ))}
-                        </Select>
+                        </FormSelect>
                     </ToolbarItem>
                     <ToolbarItem>
                         <Text component={TextVariants.small}>

@@ -6,9 +6,8 @@ import {
     Form,
     FormGroup,
     TextInput,
-    Select,
-    SelectOption,
-    SelectVariant,
+    FormSelect,
+    FormSelectOption,
     Checkbox,
     Alert,
 } from '@patternfly/react-core';
@@ -38,7 +37,6 @@ const CreateAssessmentModal: React.FC<CreateAssessmentModalProps> = ({
 }) => {
     const [name, setName] = React.useState('');
     const [profile, setProfile] = React.useState('production');
-    const [profileOpen, setProfileOpen] = React.useState(false);
     const [enableHtml, setEnableHtml] = React.useState(true);
     const [enableJson, setEnableJson] = React.useState(true);
     const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -94,6 +92,11 @@ const CreateAssessmentModal: React.FC<CreateAssessmentModalProps> = ({
         onClose();
     };
 
+    const profileOptions = [
+        { value: 'production', label: 'Production (Strict)' },
+        { value: 'development', label: 'Development (Relaxed)' },
+    ];
+
     return (
         <Modal
             variant={ModalVariant.medium}
@@ -131,24 +134,19 @@ const CreateAssessmentModal: React.FC<CreateAssessmentModalProps> = ({
                     />
                 </FormGroup>
                 <FormGroup label="Profile" fieldId="assessment-profile">
-                    <Select
+                    <FormSelect
                         id="assessment-profile"
-                        variant={SelectVariant.single}
-                        isOpen={profileOpen}
-                        onToggle={(isExpanded) => setProfileOpen(isExpanded)}
-                        onSelect={(_event, selection) => {
-                            setProfile(selection as string);
-                            setProfileOpen(false);
-                        }}
-                        selections={profile}
+                        value={profile}
+                        onChange={(value) => setProfile(value)}
                     >
-                        <SelectOption value="production">
-                            Production (Strict)
-                        </SelectOption>
-                        <SelectOption value="development">
-                            Development (Relaxed)
-                        </SelectOption>
-                    </Select>
+                        {profileOptions.map((option) => (
+                            <FormSelectOption
+                                key={option.value}
+                                value={option.value}
+                                label={option.label}
+                            />
+                        ))}
+                    </FormSelect>
                 </FormGroup>
                 <FormGroup label="Report Formats" fieldId="report-formats">
                     <Checkbox
