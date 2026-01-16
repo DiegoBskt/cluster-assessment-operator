@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.10] - 2026-01-16
+
+### Fixed
+- Console plugin nginx configuration for read-only root filesystem:
+  - Changed error/access logs to use `/dev/stderr` and `/dev/stdout` (container best practice)
+  - Configured nginx temp paths to use `/tmp` directory
+  - Added emptyDir volume mount for `/tmp` in deployment
+- Updated all image references and catalogs to v1.2.10
+
 ## [1.2.9] - 2026-01-16
 
 ### Added
@@ -130,11 +139,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date | Description |
 |---------|------|-------------|
+| 1.2.10 | 2026-01-16 | Console plugin nginx fix for read-only filesystem |
+| 1.2.9 | 2026-01-16 | New CatalogSource, controller improvements |
+| 1.2.8 | 2026-01-16 | Added limitranges RBAC permission |
+| 1.2.7 | 2026-01-16 | Added resourcequotas RBAC permission |
+| 1.2.0 | 2026-01-15 | OpenShift Dynamic Console Plugin |
 | 1.1.1 | 2026-01-15 | FBC fix, ConfigMap timestamp enhancement |
 | 1.1.0 | 2026-01-15 | 6 new validators (18 total) |
 | 1.0.0 | 2026-01-14 | Initial release |
 
-[Unreleased]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.2.9...HEAD
+[Unreleased]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.2.10...HEAD
+[1.2.10]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.2.9...v1.2.10
 [1.2.9]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.2.8...v1.2.9
 [1.2.8]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.2.7...v1.2.8
 [1.2.7]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.2.6...v1.2.7

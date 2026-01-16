@@ -16,6 +16,8 @@ coverage.*
 *.swp
 *.swo
 *~
+WARP.md
+CLAUDE.md
 
 # OS specific
 .DS_Store

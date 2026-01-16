@@ -1,5 +1,5 @@
 # Image URL to use all building/pushing image targets
-IMG ?= ghcr.io/diegobskt/cluster-assessment-operator:v1.2.9
+IMG ?= ghcr.io/diegobskt/cluster-assessment-operator:v1.2.10
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -86,11 +86,25 @@ deploy: ## Deploy controller to the K8s cluster specified in ~/.kube/config.
 	kubectl apply -f config/rbac/
 	kubectl apply -f config/manager/
 
+.PHONY: deploy-console-plugin
+deploy-console-plugin: ## Deploy the OpenShift Console plugin.
+	kubectl apply -f config/console-plugin/
+
+.PHONY: deploy-all
+deploy-all: deploy deploy-console-plugin ## Deploy operator and console plugin.
+
 .PHONY: undeploy
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
 	kubectl delete -f config/manager/ || true
 	kubectl delete -f config/rbac/ || true
 	kubectl delete -f config/crd/bases/ || true
+
+.PHONY: undeploy-console-plugin
+undeploy-console-plugin: ## Undeploy the OpenShift Console plugin.
+	kubectl delete -f config/console-plugin/ || true
+
+.PHONY: undeploy-all
+undeploy-all: undeploy undeploy-console-plugin ## Undeploy operator and console plugin.
 
 ##@ Release
 
@@ -107,7 +121,7 @@ release-manifests: ## Generate release manifests.
 bundle: release-manifests ## Generate bundle for OLM.
 	cp config/crd/bases/*.yaml bundle/manifests/
 
-BUNDLE_IMG ?= ghcr.io/diegobskt/cluster-assessment-operator-bundle:v1.2.9
+BUNDLE_IMG ?= ghcr.io/diegobskt/cluster-assessment-operator-bundle:v1.2.10
 
 .PHONY: bundle-build
 bundle-build: ## Build the bundle image for amd64.

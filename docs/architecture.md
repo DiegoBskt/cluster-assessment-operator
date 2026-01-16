@@ -11,7 +11,7 @@ flowchart TB
         Controller["Assessment Controller"]
         Registry["Validator Registry"]
         
-        subgraph Validators["12 Validators"]
+        subgraph Validators["18 Validators"]
             direction LR
             V1["version"]
             V2["nodes"]
@@ -25,6 +25,12 @@ flowchart TB
             V10["storage"]
             V11["monitoring"]
             V12["deprecation"]
+            V13["imageregistry"]
+            V14["compliance"]
+            V15["resourcequotas"]
+            V16["logging"]
+            V17["costoptimization"]
+            V18["networkpolicyaudit"]
         end
         
         Runner["Validator Runner"]
@@ -118,6 +124,10 @@ mindmap
       etcdbackup
         OADP/Velero
         Backup CronJobs
+      imageregistry
+        Registry config
+        Storage backend
+        Pruning
     Security
       certificates
         TLS expiration
@@ -126,11 +136,19 @@ mindmap
         Cluster-admin bindings
         Privileged pods
         RBAC audit
+      compliance
+        Pod Security Admission
+        OAuth providers
+        kubeadmin user
     Networking
       networking
         CNI type
         NetworkPolicies
         Ingress config
+      networkpolicyaudit
+        Policy coverage
+        Allow-all detection
+        Default deny
     Storage
       storage
         StorageClasses
@@ -140,6 +158,20 @@ mindmap
       monitoring
         Cluster monitoring
         User workload monitoring
+      logging
+        ClusterLogging
+        Log forwarding
+        Collector health
+    Governance
+      resourcequotas
+        Quota coverage
+        Utilization
+        LimitRanges
+    Infrastructure
+      costoptimization
+        Orphan PVCs
+        Idle deployments
+        Resource specs
     Compatibility
       deprecation
         Deprecated patterns
