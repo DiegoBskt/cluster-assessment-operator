@@ -1,5 +1,5 @@
 # Image URL to use all building/pushing image targets
-IMG ?= ghcr.io/diegobskt/cluster-assessment-operator:v1.0.0
+IMG ?= ghcr.io/diegobskt/cluster-assessment-operator:v1.2.9
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -107,7 +107,7 @@ release-manifests: ## Generate release manifests.
 bundle: release-manifests ## Generate bundle for OLM.
 	cp config/crd/bases/*.yaml bundle/manifests/
 
-BUNDLE_IMG ?= ghcr.io/diegobskt/cluster-assessment-operator-bundle:v1.0.0
+BUNDLE_IMG ?= ghcr.io/diegobskt/cluster-assessment-operator-bundle:v1.2.9
 
 .PHONY: bundle-build
 bundle-build: ## Build the bundle image for amd64.

@@ -325,7 +325,7 @@ oc get csv -n cluster-assessment-operator | grep cluster-assessment
 ```mermaid
 flowchart TB
     CR["ClusterAssessment CR"] --> Controller["Assessment Controller"]
-    Controller --> Registry["Validator Registry\n(12 validators)"]
+    Controller --> Registry["Validator Registry\n(18 validators)"]
     Registry --> Reporter["Report Generator\n(JSON/HTML/PDF)"]
     Reporter --> ConfigMap["ConfigMap"]
     Controller --> Metrics["Prometheus Metrics"]
@@ -335,7 +335,7 @@ flowchart TB
 |-----------|---------|
 | **ClusterAssessment CR** | Defines assessment parameters (profile, schedule, validators) |
 | **Assessment Controller** | Reconciles resources, triggers validators, calculates scores |
-| **Validator Registry** | Manages 12 validators across Platform, Security, Networking, Storage |
+| **Validator Registry** | Manages 18 validators across Platform, Security, Networking, Storage |
 | **Report Generator** | Produces JSON, HTML, and PDF reports |
 | **Prometheus Metrics** | Exports scores and findings for alerting |
 
