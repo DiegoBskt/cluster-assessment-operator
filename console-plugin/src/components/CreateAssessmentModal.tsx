@@ -30,11 +30,11 @@ const clusterAssessmentModel: K8sModel = {
     namespaced: false,
 };
 
-const CreateAssessmentModal: React.FC<CreateAssessmentModalProps> = ({
+export default function CreateAssessmentModal({
     isOpen,
     onClose,
     onCreated,
-}) => {
+}: CreateAssessmentModalProps) {
     const [name, setName] = React.useState('');
     const [profile, setProfile] = React.useState('production');
     const [enableHtml, setEnableHtml] = React.useState(true);
@@ -129,7 +129,7 @@ const CreateAssessmentModal: React.FC<CreateAssessmentModalProps> = ({
                         isRequired
                         id="assessment-name"
                         value={name}
-                        onChange={(value) => setName(value)}
+                        onChange={(_event, value) => setName(value)}
                         placeholder="my-assessment"
                     />
                 </FormGroup>
@@ -137,7 +137,7 @@ const CreateAssessmentModal: React.FC<CreateAssessmentModalProps> = ({
                     <FormSelect
                         id="assessment-profile"
                         value={profile}
-                        onChange={(value) => setProfile(value)}
+                        onChange={(_event, value) => setProfile(value)}
                     >
                         {profileOptions.map((option) => (
                             <FormSelectOption
@@ -153,18 +153,16 @@ const CreateAssessmentModal: React.FC<CreateAssessmentModalProps> = ({
                         id="format-html"
                         label="HTML Report"
                         isChecked={enableHtml}
-                        onChange={(checked) => setEnableHtml(checked)}
+                        onChange={(_event, checked) => setEnableHtml(checked)}
                     />
                     <Checkbox
                         id="format-json"
                         label="JSON Report"
                         isChecked={enableJson}
-                        onChange={(checked) => setEnableJson(checked)}
+                        onChange={(_event, checked) => setEnableJson(checked)}
                     />
                 </FormGroup>
             </Form>
         </Modal>
     );
-};
-
-export default CreateAssessmentModal;
+}

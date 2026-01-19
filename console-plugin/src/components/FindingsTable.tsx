@@ -1,11 +1,12 @@
 import * as React from 'react';
 import {
     Table,
-    TableHeader,
-    TableBody,
-    IRow,
-    ICell,
-    expandable,
+    Thead,
+    Tbody,
+    Tr,
+    Th,
+    Td,
+    ExpandableRowContent,
 } from '@patternfly/react-table';
 import {
     Label,
@@ -17,6 +18,7 @@ import {
     ToolbarContent,
     ToolbarItem,
     InputGroup,
+    InputGroupItem,
     TextInput,
     FormSelect,
     FormSelectOption,
@@ -37,14 +39,14 @@ interface FindingsTableProps {
 const getStatusIcon = (status: string) => {
     switch (status) {
         case 'PASS':
-            return <CheckCircleIcon color="var(--pf-global--success-color--100)" />;
+            return <CheckCircleIcon color="var(--pf-v5-global--success-color--100)" />;
         case 'WARN':
-            return <ExclamationTriangleIcon color="var(--pf-global--warning-color--100)" />;
+            return <ExclamationTriangleIcon color="var(--pf-v5-global--warning-color--100)" />;
         case 'FAIL':
-            return <ExclamationCircleIcon color="var(--pf-global--danger-color--100)" />;
+            return <ExclamationCircleIcon color="var(--pf-v5-global--danger-color--100)" />;
         case 'INFO':
         default:
-            return <InfoCircleIcon color="var(--pf-global--info-color--100)" />;
+            return <InfoCircleIcon color="var(--pf-v5-global--info-color--100)" />;
     }
 };
 
@@ -62,8 +64,8 @@ const getStatusLabel = (status: string) => {
     }
 };
 
-export const FindingsTable: React.FC<FindingsTableProps> = ({ findings }) => {
-    const [expandedRows, setExpandedRows] = React.useState<{ [key: number]: boolean }>({});
+export default function FindingsTable({ findings }: FindingsTableProps) {
+    const [expandedRows, setExpandedRows] = React.useState<{ [key: string]: boolean }>({});
     const [searchValue, setSearchValue] = React.useState('');
     const [severityFilter, setSeverityFilter] = React.useState<string>('All');
     const [categoryFilter, setCategoryFilter] = React.useState<string>('All');
@@ -85,89 +87,17 @@ export const FindingsTable: React.FC<FindingsTableProps> = ({ findings }) => {
         });
     }, [findings, searchValue, severityFilter, categoryFilter]);
 
-    const columns: ICell[] = [
-        { title: 'Status', cellFormatters: [expandable] },
-        { title: 'Category' },
-        { title: 'Finding' },
-        { title: 'Resource' },
-    ];
-
-    const rows: IRow[] = [];
-    filteredFindings.forEach((finding, index) => {
-        // Parent row
-        rows.push({
-            isOpen: expandedRows[index * 2] || false,
-            cells: [
-                {
-                    title: (
-                        <>
-                            {getStatusIcon(finding.status)} {getStatusLabel(finding.status)}
-                        </>
-                    ),
-                },
-                { title: <Label>{finding.category}</Label> },
-                { title: finding.title },
-                {
-                    title: finding.resource
-                        ? `${finding.namespace ? `${finding.namespace}/` : ''}${finding.resource}`
-                        : '-',
-                },
-            ],
-        });
-        // Child row (expandable content)
-        rows.push({
-            parent: index * 2,
-            fullWidth: true,
-            cells: [
-                {
-                    title: (
-                        <TextContent>
-                            <Text component={TextVariants.h4}>Description</Text>
-                            <Text>{finding.description}</Text>
-                            {finding.impact && (
-                                <>
-                                    <Text component={TextVariants.h4}>Impact</Text>
-                                    <Text>{finding.impact}</Text>
-                                </>
-                            )}
-                            {finding.recommendation && (
-                                <>
-                                    <Text component={TextVariants.h4}>Recommendation</Text>
-                                    <Text>{finding.recommendation}</Text>
-                                </>
-                            )}
-                            {finding.references && finding.references.length > 0 && (
-                                <>
-                                    <Text component={TextVariants.h4}>References</Text>
-                                    {finding.references.map((ref, i) => (
-                                        <Button
-                                            key={i}
-                                            variant="link"
-                                            isInline
-                                            component="a"
-                                            href={ref}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            icon={<ExternalLinkAltIcon />}
-                                            iconPosition="right"
-                                        >
-                                            {ref}
-                                        </Button>
-                                    ))}
-                                </>
-                            )}
-                        </TextContent>
-                    ),
-                },
-            ],
-        });
-    });
-
-    const onCollapse = (_event: any, rowIndex: number, isOpen: boolean) => {
+    const setRowExpanded = (finding: Finding, isExpanding: boolean) => {
+        const key = finding.title + finding.category;
         setExpandedRows((prev) => ({
             ...prev,
-            [rowIndex]: isOpen,
+            [key]: isExpanding,
         }));
+    };
+
+    const isRowExpanded = (finding: Finding) => {
+        const key = finding.title + finding.category;
+        return !!expandedRows[key];
     };
 
     const severityOptions = ['All', 'PASS', 'WARN', 'FAIL', 'INFO'];
@@ -178,22 +108,24 @@ export const FindingsTable: React.FC<FindingsTableProps> = ({ findings }) => {
                 <ToolbarContent>
                     <ToolbarItem>
                         <InputGroup>
-                            <TextInput
-                                name="search"
-                                id="search-input"
-                                type="text"
-                                aria-label="Search findings"
-                                placeholder="Search findings..."
-                                value={searchValue}
-                                onChange={(val) => setSearchValue(val)}
-                            />
+                            <InputGroupItem isFill>
+                                <TextInput
+                                    name="search"
+                                    id="search-input"
+                                    type="text"
+                                    aria-label="Search findings"
+                                    placeholder="Search findings..."
+                                    value={searchValue}
+                                    onChange={(_event, value) => setSearchValue(value)}
+                                />
+                            </InputGroupItem>
                         </InputGroup>
                     </ToolbarItem>
                     <ToolbarItem>
                         <FormSelect
                             aria-label="Filter by severity"
                             value={severityFilter}
-                            onChange={(value) => setSeverityFilter(value)}
+                            onChange={(_event, value) => setSeverityFilter(value)}
                         >
                             {severityOptions.map((s) => (
                                 <FormSelectOption key={s} value={s} label={s} />
@@ -204,7 +136,7 @@ export const FindingsTable: React.FC<FindingsTableProps> = ({ findings }) => {
                         <FormSelect
                             aria-label="Filter by category"
                             value={categoryFilter}
-                            onChange={(value) => setCategoryFilter(value)}
+                            onChange={(_event, value) => setCategoryFilter(value)}
                         >
                             {categories.map((c) => (
                                 <FormSelectOption key={c} value={c} label={c} />
@@ -219,17 +151,84 @@ export const FindingsTable: React.FC<FindingsTableProps> = ({ findings }) => {
                 </ToolbarContent>
             </Toolbar>
 
-            <Table
-                aria-label="Findings table"
-                onCollapse={onCollapse}
-                cells={columns}
-                rows={rows}
-            >
-                <TableHeader />
-                <TableBody />
+            <Table aria-label="Findings table" variant="compact">
+                <Thead>
+                    <Tr>
+                        <Th screenReaderText="Row expansion" />
+                        <Th>Status</Th>
+                        <Th>Category</Th>
+                        <Th>Finding</Th>
+                        <Th>Resource</Th>
+                    </Tr>
+                </Thead>
+                {filteredFindings.map((finding, rowIndex) => (
+                    <Tbody key={rowIndex} isExpanded={isRowExpanded(finding)}>
+                        <Tr>
+                            <Td
+                                expand={{
+                                    rowIndex,
+                                    isExpanded: isRowExpanded(finding),
+                                    onToggle: () => setRowExpanded(finding, !isRowExpanded(finding)),
+                                }}
+                            />
+                            <Td dataLabel="Status">
+                                {getStatusIcon(finding.status)} {getStatusLabel(finding.status)}
+                            </Td>
+                            <Td dataLabel="Category"><Label>{finding.category}</Label></Td>
+                            <Td dataLabel="Finding">{finding.title}</Td>
+                            <Td dataLabel="Resource">
+                                {finding.resource
+                                    ? `${finding.namespace ? `${finding.namespace}/` : ''}${finding.resource}`
+                                    : '-'}
+                            </Td>
+                        </Tr>
+                        <Tr isExpanded={isRowExpanded(finding)}>
+                            <Td colSpan={5}>
+                                <ExpandableRowContent>
+                                    <TextContent>
+                                        <Text component={TextVariants.h4}>Description</Text>
+                                        <Text>{finding.description}</Text>
+                                        {finding.impact && (
+                                            <>
+                                                <Text component={TextVariants.h4}>Impact</Text>
+                                                <Text>{finding.impact}</Text>
+                                            </>
+                                        )}
+                                        {finding.recommendation && (
+                                            <>
+                                                <Text component={TextVariants.h4}>Recommendation</Text>
+                                                <Text>{finding.recommendation}</Text>
+                                            </>
+                                        )}
+                                        {finding.references && finding.references.length > 0 && (
+                                            <>
+                                                <Text component={TextVariants.h4}>References</Text>
+                                                {finding.references.map((ref, i) => (
+                                                    <Button
+                                                        key={i}
+                                                        variant="link"
+                                                        isInline
+                                                        component="a"
+                                                        href={ref}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        icon={<ExternalLinkAltIcon />}
+                                                        iconPosition="end"
+                                                    >
+                                                        {ref}
+                                                    </Button>
+                                                ))}
+                                            </>
+                                        )}
+                                    </TextContent>
+                                </ExpandableRowContent>
+                            </Td>
+                        </Tr>
+                    </Tbody>
+                ))}
             </Table>
         </>
     );
-};
+}
 
-export default FindingsTable;
+export { FindingsTable };
