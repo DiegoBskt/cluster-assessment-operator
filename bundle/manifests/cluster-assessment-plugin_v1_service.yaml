@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: cluster-assessment-plugin
+  namespace: cluster-assessment-operator
+  labels:
+    app: cluster-assessment-plugin
+  annotations:
+    service.beta.openshift.io/serving-cert-secret-name: cluster-assessment-plugin-cert
+spec:
+  selector:
+    app: cluster-assessment-plugin
+  ports:
+    - name: https
+      port: 9001
+      targetPort: 9001
+      protocol: TCP

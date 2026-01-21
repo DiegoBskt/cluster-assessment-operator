@@ -48,6 +48,10 @@ update-manifests: ## Update all manifests with current VERSION (including bundle
 	@sed -i '' 's|^  version: [0-9.]*|  version: $(VERSION)|g' bundle/manifests/cluster-assessment-operator.clusterserviceversion.yaml
 	@# Update skipRange upper bound
 	@sed -i '' 's|olm.skipRange: ">=1.0.0 <[0-9.]*"|olm.skipRange: ">=1.0.0 <$(VERSION)"|g' bundle/manifests/cluster-assessment-operator.clusterserviceversion.yaml
+	@# Update operator image in bundle CSV deployments section
+	@sed -i '' 's|image: $(REGISTRY)/$(OPERATOR_NAME):v[0-9.]*|image: $(REGISTRY)/$(OPERATOR_NAME):v$(VERSION)|g' bundle/manifests/cluster-assessment-operator.clusterserviceversion.yaml
+	@# Update console plugin image in bundle CSV deployments section
+	@sed -i '' 's|image: $(REGISTRY)/$(OPERATOR_NAME)-console:v[0-9.]*|image: $(REGISTRY)/$(OPERATOR_NAME)-console:v$(VERSION)|g' bundle/manifests/cluster-assessment-operator.clusterserviceversion.yaml
 	@echo "Manifests updated to v$(VERSION)"
 	@echo ""
 	@echo "IMPORTANT: Bundle CSV version updated. This is critical for OLM catalog compatibility."

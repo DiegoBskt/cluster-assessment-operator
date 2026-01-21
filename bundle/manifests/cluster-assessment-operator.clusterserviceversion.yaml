@@ -24,7 +24,7 @@ metadata:
     # OLM Best Practices annotations
     capabilities: Basic Install
     categories: Monitoring,Developer Tools
-    containerImage: ghcr.io/diegobskt/cluster-assessment-operator:v1.2.30
+    containerImage: ghcr.io/diegobskt/cluster-assessment-operator:v1.2.31
     createdAt: "2026-01-15T14:00:00Z"
     description: Read-only OpenShift cluster configuration assessment operator
     operators.operatorframework.io/builder: operator-sdk-v1.34.0
@@ -33,13 +33,13 @@ metadata:
     support: Community
     # Upgrade path configuration per OLM best practices:
     # - skipRange allows direct upgrades from older versions to this version
-    olm.skipRange: ">=1.0.0 <1.2.30"
+    olm.skipRange: ">=1.0.0 <1.2.31"
     # Multi-arch support annotations
     operatorframework.io/suggested-namespace: cluster-assessment-operator
     operatorframework.io/arch.amd64: supported
     operatorframework.io/arch.arm64: supported
     operatorframework.io/os.linux: supported
-  name: cluster-assessment-operator.v1.2.30
+  name: cluster-assessment-operator.v1.2.31
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -343,7 +343,7 @@ spec:
               spec:
                 containers:
                   - name: manager
-                    image: ghcr.io/diegobskt/cluster-assessment-operator:v1.2.10
+                    image: ghcr.io/diegobskt/cluster-assessment-operator:v1.2.31
                     imagePullPolicy: IfNotPresent
                     command:
                       - /manager
@@ -386,6 +386,64 @@ spec:
                     type: RuntimeDefault
                 serviceAccountName: cluster-assessment-operator
                 terminationGracePeriodSeconds: 10
+        # Console Plugin Deployment - provides web UI for cluster assessments
+        - name: cluster-assessment-plugin
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: cluster-assessment-plugin
+            template:
+              metadata:
+                labels:
+                  app: cluster-assessment-plugin
+              spec:
+                containers:
+                  - name: plugin
+                    image: ghcr.io/diegobskt/cluster-assessment-operator-console:v1.2.31
+                    imagePullPolicy: Always
+                    ports:
+                      - containerPort: 9001
+                        protocol: TCP
+                    resources:
+                      limits:
+                        cpu: 100m
+                        memory: 128Mi
+                      requests:
+                        cpu: 50m
+                        memory: 64Mi
+                    securityContext:
+                      allowPrivilegeEscalation: false
+                      capabilities:
+                        drop:
+                          - ALL
+                      readOnlyRootFilesystem: true
+                      runAsNonRoot: true
+                    volumeMounts:
+                      - name: tls-cert
+                        mountPath: /etc/nginx/tls
+                        readOnly: true
+                      - name: nginx-cache
+                        mountPath: /var/cache/nginx
+                      - name: nginx-run
+                        mountPath: /var/run
+                      - name: nginx-tmp
+                        mountPath: /tmp
+                securityContext:
+                  runAsNonRoot: true
+                  seccompProfile:
+                    type: RuntimeDefault
+                volumes:
+                  - name: tls-cert
+                    secret:
+                      secretName: cluster-assessment-plugin-cert
+                      defaultMode: 420
+                  - name: nginx-cache
+                    emptyDir: {}
+                  - name: nginx-run
+                    emptyDir: {}
+                  - name: nginx-tmp
+                    emptyDir: {}
     strategy: deployment
   installModes:
     - supported: true
@@ -417,6 +475,6 @@ spec:
   provider:
     name: Community
     url: https://github.com/diegobskt/cluster-assessment-operator
-  version: 1.2.30
+  version: 1.2.31
   # Replaces field - required for upgrade graph
   replaces: cluster-assessment-operator.v1.2.28
