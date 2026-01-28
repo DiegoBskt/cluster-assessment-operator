@@ -6,15 +6,19 @@ REGISTRY ?= ghcr.io/diegobskt
 OPERATOR_NAME ?= cluster-assessment-operator
 IMG ?= $(REGISTRY)/$(OPERATOR_NAME):v$(VERSION)
 CONSOLE_IMG ?= $(REGISTRY)/$(OPERATOR_NAME)-console:v$(VERSION)
+BUNDLE_IMG ?= $(REGISTRY)/$(OPERATOR_NAME)-bundle:v$(VERSION)
+CATALOG_IMG ?= $(REGISTRY)/$(OPERATOR_NAME)-catalog
 
-# Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
+# OCP versions to build catalogs for
+OCP_VERSIONS ?= v4.12 v4.13 v4.14 v4.15 v4.16 v4.17 v4.18 v4.19 v4.20
+
+# Go configuration
 ifeq (,$(shell go env GOBIN))
 GOBIN=$(shell go env GOPATH)/bin
 else
 GOBIN=$(shell go env GOBIN)
 endif
 
-# Setting SHELL to bash allows bash commands to be executed by recipes.
 SHELL = /usr/bin/env bash -o pipefail
 .SHELLFLAGS = -ec
 
@@ -25,192 +29,209 @@ all: build
 
 .PHONY: help
 help: ## Display this help.
-	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
+	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
 .PHONY: version
-version: ## Show current version from VERSION file.
+version: ## Show current version.
 	@echo "$(VERSION)"
 
-##@ Version Management
-
-.PHONY: update-manifests
-update-manifests: ## Update all manifests with current VERSION (including bundle CSV).
-	@echo "Updating manifests to v$(VERSION)..."
-	@# Update operator deployment image
-	@sed -i '' 's|image: $(REGISTRY)/$(OPERATOR_NAME):v[0-9.]*|image: $(REGISTRY)/$(OPERATOR_NAME):v$(VERSION)|g' config/manager/manager.yaml
-	@# Update console plugin image
-	@sed -i '' 's|image: $(REGISTRY)/$(OPERATOR_NAME)-console:v[0-9.]*|image: $(REGISTRY)/$(OPERATOR_NAME)-console:v$(VERSION)|g' config/console-plugin/deployment.yaml
-	@# Update bundle CSV containerImage annotation
-	@sed -i '' 's|containerImage: $(REGISTRY)/$(OPERATOR_NAME):v[0-9.]*|containerImage: $(REGISTRY)/$(OPERATOR_NAME):v$(VERSION)|g' bundle/manifests/cluster-assessment-operator.clusterserviceversion.yaml
-	@# Update bundle CSV metadata.name (critical for OLM catalog)
-	@sed -i '' 's|name: cluster-assessment-operator.v[0-9.]*|name: cluster-assessment-operator.v$(VERSION)|g' bundle/manifests/cluster-assessment-operator.clusterserviceversion.yaml
-	@# Update bundle CSV spec.version (critical for OLM catalog)
-	@sed -i '' 's|^  version: [0-9.]*|  version: $(VERSION)|g' bundle/manifests/cluster-assessment-operator.clusterserviceversion.yaml
-	@# Update skipRange upper bound
-	@sed -i '' 's|olm.skipRange: ">=1.0.0 <[0-9.]*"|olm.skipRange: ">=1.0.0 <$(VERSION)"|g' bundle/manifests/cluster-assessment-operator.clusterserviceversion.yaml
-	@# Update operator image in bundle CSV deployments section
-	@sed -i '' 's|image: $(REGISTRY)/$(OPERATOR_NAME):v[0-9.]*|image: $(REGISTRY)/$(OPERATOR_NAME):v$(VERSION)|g' bundle/manifests/cluster-assessment-operator.clusterserviceversion.yaml
-	@# Update console plugin image in bundle CSV deployments section
-	@sed -i '' 's|image: $(REGISTRY)/$(OPERATOR_NAME)-console:v[0-9.]*|image: $(REGISTRY)/$(OPERATOR_NAME)-console:v$(VERSION)|g' bundle/manifests/cluster-assessment-operator.clusterserviceversion.yaml
-	@echo "Manifests updated to v$(VERSION)"
-	@echo ""
-	@echo "IMPORTANT: Bundle CSV version updated. This is critical for OLM catalog compatibility."
-
-.PHONY: update-catalogs
-update-catalogs: ## Update FBC catalog templates with current VERSION.
-	@./scripts/update-catalogs.sh $(VERSION)
-
-.PHONY: release-prep
-release-prep: update-manifests update-catalogs ## Prepare for release: update all manifests and catalogs.
-	@echo ""
-	@echo "============================================================"
-	@echo "Release preparation complete for v$(VERSION)"
-	@echo "============================================================"
-	@echo ""
-	@echo "IMPORTANT: Verify bundle CSV version matches release:"
-	@grep "name: cluster-assessment-operator.v" bundle/manifests/cluster-assessment-operator.clusterserviceversion.yaml | head -1
-	@grep "^  version:" bundle/manifests/cluster-assessment-operator.clusterserviceversion.yaml
-	@echo ""
-	@echo "Next steps:"
-	@echo "  1. Review changes: git diff"
-	@echo "  2. Commit: git commit -am 'chore: prepare release v$(VERSION)'"
-	@echo "  3. Tag: git tag v$(VERSION)"
-	@echo "  4. Push: git push origin main v$(VERSION)"
-
-
-
 ##@ Development
-
-.PHONY: fmt
-fmt: ## Run go fmt against code.
-	go fmt ./...
-
-.PHONY: vet
-vet: ## Run go vet against code.
-	go vet ./...
-
-.PHONY: test
-test: fmt vet ## Run tests.
-	go test ./... -coverprofile cover.out
-
-.PHONY: lint
-lint: ## Run golangci-lint against code.
-	golangci-lint run
-
-##@ Build
 
 .PHONY: build
 build: fmt vet ## Build manager binary.
 	go build -o bin/manager main.go
 
 .PHONY: run
-run: fmt vet ## Run a controller from your host.
+run: fmt vet ## Run controller locally (for development).
 	go run ./main.go
 
-.PHONY: podman-build
-podman-build: ## Build container image for amd64 (OpenShift default).
-	podman build --platform linux/amd64 -t ${IMG} .
+.PHONY: fmt
+fmt: ## Run go fmt.
+	go fmt ./...
 
-.PHONY: podman-build-local
-podman-build-local: ## Build container image for local architecture.
-	podman build -t ${IMG} .
+.PHONY: vet
+vet: ## Run go vet.
+	go vet ./...
 
-.PHONY: podman-push
-podman-push: ## Push container image with the manager.
-	podman push ${IMG}
+.PHONY: test
+test: fmt vet ## Run tests with coverage.
+	go test ./... -coverprofile cover.out
 
-.PHONY: podman-buildx
-podman-buildx: ## Build and push multi-arch manifest (amd64 + arm64).
-	-podman rmi ${IMG} 2>/dev/null || true
-	-podman manifest rm ${IMG} 2>/dev/null || true
-	podman manifest create ${IMG}
-	podman build --platform linux/amd64 --manifest ${IMG} .
-	podman build --platform linux/arm64 --manifest ${IMG} .
-	podman manifest push --all ${IMG}
+.PHONY: lint
+lint: ## Run golangci-lint.
+	golangci-lint run
 
-##@ Deployment
+.PHONY: deps
+deps: ## Download and tidy dependencies.
+	go mod download
+	go mod tidy
 
-.PHONY: install
-install: ## Install CRDs into the K8s cluster specified in ~/.kube/config.
-	kubectl apply -f config/crd/bases/
-
-.PHONY: uninstall
-uninstall: ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config.
-	kubectl delete -f config/crd/bases/
+##@ Deployment (Direct - for Development)
 
 .PHONY: deploy
-deploy: ## Deploy controller to the K8s cluster specified in ~/.kube/config.
+deploy: ## Deploy operator + console plugin directly (dev mode, no OLM).
+	@echo "Deploying operator and console plugin..."
 	kubectl apply -f config/crd/bases/
 	kubectl apply -f config/rbac/
 	kubectl apply -f config/manager/
-
-.PHONY: deploy-console-plugin
-deploy-console-plugin: ## Deploy the OpenShift Console plugin.
 	kubectl apply -f config/console-plugin/
-
-.PHONY: deploy-all
-deploy-all: deploy deploy-console-plugin ## Deploy operator and console plugin.
+	@echo ""
+	@echo "Enabling console plugin..."
+	oc patch consoles.operator.openshift.io cluster --type=merge --patch='{"spec":{"plugins":["cluster-assessment-plugin"]}}' 2>/dev/null || true
+	@echo "Deployment complete! Run: oc get pods -n cluster-assessment-operator"
 
 .PHONY: undeploy
-undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
-	kubectl delete -f config/manager/ || true
-	kubectl delete -f config/rbac/ || true
-	kubectl delete -f config/crd/bases/ || true
+undeploy: ## Undeploy operator + console plugin (dev mode).
+	@echo "Undeploying operator and console plugin..."
+	-oc patch consoles.operator.openshift.io cluster --type=json --patch='[{"op": "remove", "path": "/spec/plugins"}]' 2>/dev/null
+	-kubectl delete -f config/console-plugin/
+	-kubectl delete -f config/manager/
+	-kubectl delete -f config/rbac/
+	-kubectl delete -f config/crd/bases/
+	@echo "Undeploy complete!"
 
-.PHONY: undeploy-console-plugin
-undeploy-console-plugin: ## Undeploy the OpenShift Console plugin.
-	kubectl delete -f config/console-plugin/ || true
+##@ Deployment (OLM - for Production)
 
-.PHONY: undeploy-all
-undeploy-all: undeploy undeploy-console-plugin ## Undeploy operator and console plugin.
+.PHONY: deploy-olm
+deploy-olm: ## Deploy operator via OLM CatalogSource (production).
+	@echo "Deploying via OLM..."
+	@OCP_VERSION=$$(oc version -o json 2>/dev/null | jq -r '.openshiftVersion' | cut -d. -f1,2 | sed 's/^/v/' || echo "v4.20"); \
+	echo "Detected OpenShift version: $$OCP_VERSION"; \
+	oc apply -f - <<EOF
+	---
+	apiVersion: operators.coreos.com/v1alpha1
+	kind: CatalogSource
+	metadata:
+	  name: cluster-assessment-catalog
+	  namespace: openshift-marketplace
+	spec:
+	  sourceType: grpc
+	  image: $(CATALOG_IMG):$$OCP_VERSION
+	  displayName: Cluster Assessment Operator
+	  publisher: Community
+	  updateStrategy:
+	    registryPoll:
+	      interval: 10m
+	---
+	apiVersion: v1
+	kind: Namespace
+	metadata:
+	  name: cluster-assessment-operator
+	  labels:
+	    openshift.io/cluster-monitoring: "true"
+	---
+	apiVersion: operators.coreos.com/v1
+	kind: OperatorGroup
+	metadata:
+	  name: cluster-assessment-operator
+	  namespace: cluster-assessment-operator
+	spec: {}
+	---
+	apiVersion: operators.coreos.com/v1alpha1
+	kind: Subscription
+	metadata:
+	  name: cluster-assessment-operator
+	  namespace: cluster-assessment-operator
+	spec:
+	  channel: stable-v1
+	  name: cluster-assessment-operator
+	  source: cluster-assessment-catalog
+	  sourceNamespace: openshift-marketplace
+	  installPlanApproval: Automatic
+	EOF
+	@echo ""
+	@echo "Enabling console plugin..."
+	@sleep 5
+	oc patch consoles.operator.openshift.io cluster --type=merge --patch='{"spec":{"plugins":["cluster-assessment-plugin"]}}'
+	@echo ""
+	@echo "OLM deployment initiated! Monitor with: oc get csv -n cluster-assessment-operator -w"
+
+.PHONY: undeploy-olm
+undeploy-olm: ## Undeploy operator via OLM (full cleanup).
+	@echo "Cleaning up OLM deployment..."
+	-oc delete clusterassessment --all --ignore-not-found
+	-oc delete subscription.operators.coreos.com cluster-assessment-operator -n cluster-assessment-operator --ignore-not-found
+	-oc delete csv -n cluster-assessment-operator -l operators.coreos.com/cluster-assessment-operator.cluster-assessment-operator --ignore-not-found
+	-oc delete operatorgroup cluster-assessment-operator -n cluster-assessment-operator --ignore-not-found
+	-oc patch consoles.operator.openshift.io cluster --type=json --patch='[{"op": "remove", "path": "/spec/plugins"}]' 2>/dev/null || true
+	-oc delete catalogsource cluster-assessment-catalog -n openshift-marketplace --ignore-not-found
+	-oc delete namespace cluster-assessment-operator --ignore-not-found --wait=false
+	-oc delete crd clusterassessments.assessment.openshift.io --ignore-not-found
+	@echo "OLM cleanup complete!"
 
 ##@ Release
 
-.PHONY: release-manifests
-release-manifests: ## Generate release manifests.
-	mkdir -p dist
-	cat config/crd/bases/*.yaml > dist/install.yaml
-	echo "---" >> dist/install.yaml
-	cat config/rbac/*.yaml >> dist/install.yaml
-	echo "---" >> dist/install.yaml
-	cat config/manager/*.yaml >> dist/install.yaml
+.PHONY: release-prep
+release-prep: update-manifests update-catalogs ## Prepare release: update VERSION → manifests → catalogs.
+	@echo ""
+	@echo "============================================================"
+	@echo "Release preparation complete for v$(VERSION)"
+	@echo "============================================================"
+	@echo ""
+	@echo "Verify bundle CSV version:"
+	@grep "name: cluster-assessment-operator.v" bundle/manifests/cluster-assessment-operator.clusterserviceversion.yaml | head -1
+	@echo ""
+	@echo "Next steps:"
+	@echo "  1. git diff"
+	@echo "  2. git commit -am 'chore: release v$(VERSION)'"
+	@echo "  3. git tag v$(VERSION)"
+	@echo "  4. git push origin main v$(VERSION)"
 
-.PHONY: bundle
-bundle: release-manifests ## Generate bundle for OLM.
-	cp config/crd/bases/*.yaml bundle/manifests/
+.PHONY: update-manifests
+update-manifests: ## Update all manifests with current VERSION.
+	@echo "Updating manifests to v$(VERSION)..."
+	@sed -i '' 's|image: $(REGISTRY)/$(OPERATOR_NAME):v[0-9.]*|image: $(REGISTRY)/$(OPERATOR_NAME):v$(VERSION)|g' config/manager/manager.yaml
+	@sed -i '' 's|image: $(REGISTRY)/$(OPERATOR_NAME)-console:v[0-9.]*|image: $(REGISTRY)/$(OPERATOR_NAME)-console:v$(VERSION)|g' config/console-plugin/deployment.yaml
+	@sed -i '' 's|containerImage: $(REGISTRY)/$(OPERATOR_NAME):v[0-9.]*|containerImage: $(REGISTRY)/$(OPERATOR_NAME):v$(VERSION)|g' bundle/manifests/cluster-assessment-operator.clusterserviceversion.yaml
+	@sed -i '' 's|name: cluster-assessment-operator.v[0-9.]*|name: cluster-assessment-operator.v$(VERSION)|g' bundle/manifests/cluster-assessment-operator.clusterserviceversion.yaml
+	@sed -i '' 's|^  version: [0-9.]*|  version: $(VERSION)|g' bundle/manifests/cluster-assessment-operator.clusterserviceversion.yaml
+	@sed -i '' 's|olm.skipRange: ">=1.0.0 <[0-9.]*"|olm.skipRange: ">=1.0.0 <$(VERSION)"|g' bundle/manifests/cluster-assessment-operator.clusterserviceversion.yaml
+	@sed -i '' 's|image: $(REGISTRY)/$(OPERATOR_NAME):v[0-9.]*|image: $(REGISTRY)/$(OPERATOR_NAME):v$(VERSION)|g' bundle/manifests/cluster-assessment-operator.clusterserviceversion.yaml
+	@sed -i '' 's|image: $(REGISTRY)/$(OPERATOR_NAME)-console:v[0-9.]*|image: $(REGISTRY)/$(OPERATOR_NAME)-console:v$(VERSION)|g' bundle/manifests/cluster-assessment-operator.clusterserviceversion.yaml
+	@echo "Manifests updated to v$(VERSION)"
 
-BUNDLE_IMG ?= $(REGISTRY)/$(OPERATOR_NAME)-bundle:v$(VERSION)
+.PHONY: update-catalogs
+update-catalogs: ## Update catalog templates with current VERSION.
+	@./scripts/update-catalogs.sh $(VERSION)
+
+##@ Build Images
+
+.PHONY: image-build
+image-build: ## Build operator image (amd64).
+	podman build --platform linux/amd64 -t $(IMG) .
+
+.PHONY: image-push
+image-push: ## Push operator image.
+	podman push $(IMG)
+
+.PHONY: image-buildx
+image-buildx: ## Build and push multi-arch operator image (amd64 + arm64).
+	-podman manifest rm $(IMG) 2>/dev/null || true
+	podman manifest create $(IMG)
+	podman build --platform linux/amd64 --manifest $(IMG) .
+	podman build --platform linux/arm64 --manifest $(IMG) .
+	podman manifest push --all $(IMG)
 
 .PHONY: bundle-build
-bundle-build: ## Build the bundle image for amd64.
+bundle-build: ## Build bundle image (amd64).
 	podman build --platform linux/amd64 -f bundle.Dockerfile -t $(BUNDLE_IMG) .
 
-.PHONY: bundle-build-local
-bundle-build-local: ## Build the bundle image for local architecture.
-	podman build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
-
 .PHONY: bundle-push
-bundle-push: ## Push the bundle image.
+bundle-push: ## Push bundle image.
 	podman push $(BUNDLE_IMG)
 
 .PHONY: bundle-buildx
-bundle-buildx: ## Build and push multi-arch bundle (amd64 + arm64).
-	-podman rmi $(BUNDLE_IMG) 2>/dev/null || true
+bundle-buildx: ## Build and push multi-arch bundle image.
 	-podman manifest rm $(BUNDLE_IMG) 2>/dev/null || true
 	podman manifest create $(BUNDLE_IMG)
 	podman build --platform linux/amd64 -f bundle.Dockerfile --manifest $(BUNDLE_IMG) .
 	podman build --platform linux/arm64 -f bundle.Dockerfile --manifest $(BUNDLE_IMG) .
 	podman manifest push --all $(BUNDLE_IMG)
 
-CATALOG_IMG ?= $(REGISTRY)/$(OPERATOR_NAME)-catalog
-
-# OCP versions to build catalogs for (Red Hat OperatorHub requirement)
-OCP_VERSIONS ?= v4.12 v4.13 v4.14 v4.15 v4.16 v4.17 v4.18 v4.19 v4.20
-
-##@ File Based Catalog (FBC) - Red Hat OperatorHub Compatible
+##@ Catalog Images
 
 .PHONY: catalogs
-catalogs: ## Generate FBC catalogs from templates for all OCP versions.
+catalogs: ## Generate FBC catalogs from templates.
 	@for version in $(OCP_VERSIONS); do \
 		echo "Generating catalog for $$version..."; \
 		mkdir -p catalogs/$$version/$(OPERATOR_NAME); \
@@ -224,25 +245,13 @@ catalog-validate: ## Validate all FBC catalogs.
 		echo "Validating catalog for $$version..."; \
 		opm validate catalogs/$$version; \
 	done
-	@echo "All catalogs validated successfully!"
+	@echo "All catalogs valid!"
 
 .PHONY: catalog-build
-catalog-build: ## Build FBC catalog images for all OCP versions (amd64).
+catalog-build: ## Build catalog images for all OCP versions.
 	@for version in $(OCP_VERSIONS); do \
-		echo "Building catalog image for $$version..."; \
+		echo "Building catalog for $$version..."; \
 		podman build --platform linux/amd64 \
-			--build-arg OCP_VERSION=$$version \
-			--build-arg OPERATOR_NAME=$(OPERATOR_NAME) \
-			-f catalog.Dockerfile \
-			-t $(CATALOG_IMG):$$version .; \
-	done
-	@echo "Catalog images built: $(OCP_VERSIONS)"
-
-.PHONY: catalog-build-local
-catalog-build-local: ## Build FBC catalog images for local architecture.
-	@for version in $(OCP_VERSIONS); do \
-		echo "Building catalog image for $$version (local arch)..."; \
-		podman build \
 			--build-arg OCP_VERSION=$$version \
 			--build-arg OPERATOR_NAME=$(OPERATOR_NAME) \
 			-f catalog.Dockerfile \
@@ -250,58 +259,21 @@ catalog-build-local: ## Build FBC catalog images for local architecture.
 	done
 
 .PHONY: catalog-push
-catalog-push: ## Push all catalog images to registry.
+catalog-push: ## Push all catalog images.
 	@for version in $(OCP_VERSIONS); do \
-		echo "Pushing catalog image for $$version..."; \
+		echo "Pushing catalog for $$version..."; \
 		podman push $(CATALOG_IMG):$$version; \
 	done
-	@echo "All catalog images pushed!"
 
-.PHONY: catalog-build-single
-catalog-build-single: ## Build catalog for single OCP version. Usage: make catalog-build-single OCP_VERSION=v4.14
-ifndef OCP_VERSION
-	$(error OCP_VERSION is required. Usage: make catalog-build-single OCP_VERSION=v4.14)
-endif
-	opm validate catalogs/$(OCP_VERSION)
-	podman build --platform linux/amd64 \
-		--build-arg OCP_VERSION=$(OCP_VERSION) \
-		--build-arg OPERATOR_NAME=$(OPERATOR_NAME) \
-		-f catalog.Dockerfile \
-		-t $(CATALOG_IMG):$(OCP_VERSION) .
-
-.PHONY: deploy-olm
-deploy-olm: ## Deploy the operator via OLM using operator-sdk.
-	operator-sdk run bundle $(BUNDLE_IMG)
-
-.PHONY: cleanup-olm
-cleanup-olm: ## Remove the operator installed via OLM.
-	operator-sdk cleanup cluster-assessment-operator
+##@ Testing
 
 .PHONY: scorecard
-scorecard: ## Run operator-sdk scorecard tests.
+scorecard: ## Run OLM scorecard tests.
 	operator-sdk scorecard bundle --selector=suite=basic
 	operator-sdk scorecard bundle --selector=suite=olm
 
-.PHONY: test-coverage
-test-coverage: ## Run tests with coverage report.
-	go test ./... -coverprofile=coverage.out -covermode=atomic
-	go tool cover -html=coverage.out -o coverage.html
-	@echo "Coverage report generated: coverage.html"
-
 .PHONY: preflight
-preflight: ## Run Red Hat Preflight certification checks (containerized).
+preflight: ## Run Red Hat Preflight certification checks.
 	podman run --rm \
 		-v $(HOME)/.docker/config.json:/root/.docker/config.json:ro \
 		quay.io/opdev/preflight:stable check container $(IMG)
-
-##@ Dependencies
-
-.PHONY: deps
-deps: ## Download dependencies.
-	go mod download
-	go mod tidy
-
-.PHONY: verify-deps
-verify-deps: ## Verify dependencies.
-	go mod verify
-
