@@ -39,9 +39,6 @@ cd cluster-assessment-operator
 
 # Deploy using make (handles order automatically)
 make deploy
-
-# Or deploy with console plugin
-make deploy-all
 ```
 
 **Option B: Manual Deployment**
@@ -199,18 +196,16 @@ cluster_assessment_duration_seconds{assessment_name="my-assessment"}
 | Command | Description |
 |---------|-------------|
 | `make build` | Build manager binary |
-| `make test` | Run unit tests |
-| `make test-coverage` | Run tests with coverage report |
+| `make test` | Run unit tests with coverage |
 | `make lint` | Run golangci-lint |
 
 ### Container Build Commands
 
 | Command | Description |
 |---------|-------------|
-| `make podman-build` | Build container for **amd64** (OpenShift default) |
-| `make podman-build-local` | Build container for local architecture |
-| `make podman-push` | Push single-arch image |
-| `make podman-buildx` | Build + push **multi-arch** manifest (amd64/arm64) |
+| `make image-build` | Build container for **amd64** (OpenShift default) |
+| `make image-push` | Push single-arch image |
+| `make image-buildx` | Build + push **multi-arch** manifest (amd64/arm64) |
 
 ### Run Locally
 
@@ -238,8 +233,7 @@ This operator uses **File Based Catalog (FBC)** format following [OLM best pract
 
 | Command | Description |
 |---------|-------------|
-| `make bundle` | Generate OLM bundle manifests |
-| `make bundle-build-local` | Build bundle for local architecture |
+| `make bundle-build` | Build bundle image (amd64) |
 | `make bundle-buildx` | Build + push **multi-arch** bundle (amd64/arm64) |
 
 ### FBC Catalog Commands
@@ -247,7 +241,6 @@ This operator uses **File Based Catalog (FBC)** format following [OLM best pract
 | Command | Description |
 |---------|-------------|
 | `make catalog-validate` | Validate all FBC catalogs (v4.12-v4.20) |
-| `make catalog-build-single OCP_VERSION=v4.14` | Build catalog for specific OCP version |
 | `make catalog-build` | Build catalog images for all OCP versions |
 | `make catalog-push` | Push all catalog images |
 | `make scorecard` | Run OLM scorecard tests |
@@ -261,7 +254,7 @@ make bundle-buildx
 make deploy-olm
 
 # To uninstall
-make cleanup-olm
+make undeploy-olm
 ```
 
 **Option 2: CatalogSource (Production)**
@@ -357,14 +350,11 @@ The Cluster Assessment Operator includes an **OpenShift Console Plugin** that pr
 
 ### Deploy Console Plugin
 
-After deploying the operator, deploy the console plugin:
+The console plugin is included in the default deployment:
 
 ```bash
 # Deploy operator + console plugin
-make deploy-all
-
-# Or deploy console plugin separately
-make deploy-console-plugin
+make deploy
 ```
 
 ### Enable the Plugin
@@ -384,7 +374,7 @@ Refresh the OpenShift Console. Navigate to **Observe > Cluster Assessment** to v
 ### Undeploy
 
 ```bash
-make undeploy-all
+make undeploy
 ```
 
 ---
@@ -434,11 +424,8 @@ The operator includes an OpenShift Dynamic Console Plugin for visual cluster ass
 ### Enable the Console Plugin
 
 ```bash
-# Deploy console plugin
-make deploy-console-plugin
-
-# Or deploy everything together
-make deploy-all
+# Deploy operator + console plugin
+make deploy
 ```
 
 ### Access the UI
