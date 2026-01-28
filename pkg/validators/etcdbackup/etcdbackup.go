@@ -19,6 +19,7 @@ package etcdbackup
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -245,20 +246,7 @@ func (v *EtcdBackupValidator) checkVelero(ctx context.Context, c client.Client) 
 func containsBackupKeyword(name string) bool {
 	keywords := []string{"backup", "etcd-backup", "cluster-backup", "velero", "oadp"}
 	for _, kw := range keywords {
-		if contains(name, kw) {
-			return true
-		}
-	}
-	return false
-}
-
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsAt(s, substr))
-}
-
-func containsAt(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
+		if strings.Contains(name, kw) {
 			return true
 		}
 	}
