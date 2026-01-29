@@ -17,11 +17,11 @@ import {
     Toolbar,
     ToolbarContent,
     ToolbarItem,
-    InputGroup,
-    InputGroupItem,
-    TextInput,
+    SearchInput,
     FormSelect,
     FormSelectOption,
+    Pagination,
+    PaginationVariant,
 } from '@patternfly/react-core';
 import {
     CheckCircleIcon,
@@ -70,6 +70,10 @@ export default function FindingsTable({ findings }: FindingsTableProps) {
     const [severityFilter, setSeverityFilter] = React.useState<string>('All');
     const [categoryFilter, setCategoryFilter] = React.useState<string>('All');
 
+    // Pagination state
+    const [page, setPage] = React.useState(1);
+    const [perPage, setPerPage] = React.useState(10);
+
     const categories = React.useMemo(() => {
         const cats = new Set(findings.map((f) => f.category));
         return ['All', ...Array.from(cats)];
@@ -86,6 +90,27 @@ export default function FindingsTable({ findings }: FindingsTableProps) {
             return matchesSearch && matchesSeverity && matchesCategory;
         });
     }, [findings, searchValue, severityFilter, categoryFilter]);
+
+    // Reset page when filters change
+    React.useEffect(() => {
+        setPage(1);
+    }, [searchValue, severityFilter, categoryFilter]);
+
+    // Calculate paginated findings
+    const paginatedFindings = React.useMemo(() => {
+        const start = (page - 1) * perPage;
+        const end = start + perPage;
+        return filteredFindings.slice(start, end);
+    }, [filteredFindings, page, perPage]);
+
+    const onSetPage = (_event: React.MouseEvent | React.KeyboardEvent | MouseEvent, newPage: number) => {
+        setPage(newPage);
+    };
+
+    const onPerPageSelect = (_event: React.MouseEvent | React.KeyboardEvent | MouseEvent, newPerPage: number) => {
+        setPerPage(newPerPage);
+        setPage(1);
+    };
 
     const setRowExpanded = (finding: Finding, isExpanding: boolean) => {
         const key = finding.title + finding.category;
@@ -107,19 +132,13 @@ export default function FindingsTable({ findings }: FindingsTableProps) {
             <Toolbar id="findings-toolbar">
                 <ToolbarContent>
                     <ToolbarItem>
-                        <InputGroup>
-                            <InputGroupItem isFill>
-                                <TextInput
-                                    name="search"
-                                    id="search-input"
-                                    type="text"
-                                    aria-label="Search findings"
-                                    placeholder="Search findings..."
-                                    value={searchValue}
-                                    onChange={(_event, value) => setSearchValue(value)}
-                                />
-                            </InputGroupItem>
-                        </InputGroup>
+                        <SearchInput
+                            aria-label="Search findings"
+                            placeholder="Search findings..."
+                            value={searchValue}
+                            onChange={(_event, value) => setSearchValue(value)}
+                            onClear={() => setSearchValue('')}
+                        />
                     </ToolbarItem>
                     <ToolbarItem>
                         <FormSelect
@@ -143,10 +162,15 @@ export default function FindingsTable({ findings }: FindingsTableProps) {
                             ))}
                         </FormSelect>
                     </ToolbarItem>
-                    <ToolbarItem>
-                        <Text component={TextVariants.small}>
-                            {filteredFindings.length} of {findings.length} findings
-                        </Text>
+                    <ToolbarItem variant="pagination">
+                        <Pagination
+                            itemCount={filteredFindings.length}
+                            perPage={perPage}
+                            page={page}
+                            onSetPage={onSetPage}
+                            onPerPageSelect={onPerPageSelect}
+                            isCompact
+                        />
                     </ToolbarItem>
                 </ToolbarContent>
             </Toolbar>
@@ -161,7 +185,7 @@ export default function FindingsTable({ findings }: FindingsTableProps) {
                         <Th>Resource</Th>
                     </Tr>
                 </Thead>
-                {filteredFindings.map((finding, rowIndex) => (
+                {paginatedFindings.map((finding, rowIndex) => (
                     <Tbody key={rowIndex} isExpanded={isRowExpanded(finding)}>
                         <Tr>
                             <Td
@@ -227,6 +251,14 @@ export default function FindingsTable({ findings }: FindingsTableProps) {
                     </Tbody>
                 ))}
             </Table>
+            <Pagination
+                itemCount={filteredFindings.length}
+                perPage={perPage}
+                page={page}
+                onSetPage={onSetPage}
+                onPerPageSelect={onPerPageSelect}
+                variant={PaginationVariant.bottom}
+            />
         </>
     );
 }
