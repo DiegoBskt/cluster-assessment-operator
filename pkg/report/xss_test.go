@@ -13,11 +13,11 @@ func TestGenerateHTML_XSS(t *testing.T) {
 		Status: assessmentv1alpha1.ClusterAssessmentStatus{
 			Findings: []assessmentv1alpha1.Finding{
 				{
-					Title:       "<script>alert('title')</script>",
-					Description: "Desc <img src=x onerror=alert(1)>",
-					Category:    "Security",
-					Validator:   "test-validator",
-					Status:      assessmentv1alpha1.FindingStatusFail,
+					Title:          "<script>alert('title')</script>",
+					Description:    "Desc <img src=x onerror=alert(1)>",
+					Category:       "Security",
+					Validator:      "test-validator",
+					Status:         assessmentv1alpha1.FindingStatusFail,
 					Recommendation: "<b>Do not do this</b>",
 				},
 			},
@@ -45,14 +45,14 @@ func TestGenerateHTML_XSS(t *testing.T) {
 		t.Errorf("HTML contains unescaped b tag in recommendation")
 	}
 
-    // Check for escaped tags - SHOULD EXIST
-    if !strings.Contains(htmlStr, "&lt;script&gt;") {
-        t.Errorf("HTML should contain escaped script tag")
-    }
+	// Check for escaped tags - SHOULD EXIST
+	if !strings.Contains(htmlStr, "&lt;script&gt;") {
+		t.Errorf("HTML should contain escaped script tag")
+	}
 	if !strings.Contains(htmlStr, "&lt;img src=x") {
-        t.Errorf("HTML should contain escaped img tag")
-    }
+		t.Errorf("HTML should contain escaped img tag")
+	}
 	if !strings.Contains(htmlStr, "&lt;b&gt;") {
-        t.Errorf("HTML should contain escaped b tag")
-    }
+		t.Errorf("HTML should contain escaped b tag")
+	}
 }
