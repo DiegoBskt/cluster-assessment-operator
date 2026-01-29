@@ -10,7 +10,11 @@ import {
     FormSelectOption,
     Checkbox,
     Alert,
+    FormHelperText,
+    HelperText,
+    HelperTextItem,
 } from '@patternfly/react-core';
+import { ExclamationCircleIcon } from '@patternfly/react-icons';
 import { k8sCreate, K8sModel } from '@openshift-console/dynamic-plugin-sdk';
 
 interface CreateAssessmentModalProps {
@@ -45,6 +49,11 @@ export default function CreateAssessmentModal({
     const handleSubmit = async () => {
         if (!name.trim()) {
             setError('Name is required');
+            return;
+        }
+
+        if (!enableHtml && !enableJson) {
+            setError('At least one report format is required');
             return;
         }
 
@@ -108,7 +117,7 @@ export default function CreateAssessmentModal({
                     key="create"
                     variant="primary"
                     onClick={handleSubmit}
-                    isDisabled={isSubmitting || !name.trim()}
+                    isDisabled={isSubmitting || !name.trim() || (!enableHtml && !enableJson)}
                     isLoading={isSubmitting}
                 >
                     Create
@@ -148,6 +157,15 @@ export default function CreateAssessmentModal({
                             />
                         ))}
                     </FormSelect>
+                    <FormHelperText>
+                        <HelperText>
+                            <HelperTextItem variant="default">
+                                {profile === 'production'
+                                    ? 'Strict checks suitable for production environments.'
+                                    : 'Relaxed checks suitable for development or test environments.'}
+                            </HelperTextItem>
+                        </HelperText>
+                    </FormHelperText>
                 </FormGroup>
                 <FormGroup label="Report Formats" role="group">
                     <Checkbox
@@ -162,6 +180,15 @@ export default function CreateAssessmentModal({
                         isChecked={enableJson}
                         onChange={(_event, checked) => setEnableJson(checked)}
                     />
+                    {(!enableHtml && !enableJson) && (
+                        <FormHelperText>
+                            <HelperText>
+                                <HelperTextItem variant="error" icon={<ExclamationCircleIcon />}>
+                                    At least one report format must be selected.
+                                </HelperTextItem>
+                            </HelperText>
+                        </FormHelperText>
+                    )}
                 </FormGroup>
             </Form>
         </Modal>
