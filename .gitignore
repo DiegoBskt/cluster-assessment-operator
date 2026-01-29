@@ -55,3 +55,7 @@ console-plugin/dist/
 .env.local
 .env.*.local
 *.bak
+# Agent and Tool configurations
+.agent/
+.jules/
+.Jules/
