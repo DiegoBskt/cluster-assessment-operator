@@ -523,15 +523,12 @@ func (r *ClusterAssessmentReconciler) exportToGit(ctx context.Context, assessmen
 	// Retrieve credentials if SecretRef is provided
 	var auth *http.BasicAuth
 	if gitSpec.SecretRef != "" {
-		namespace := os.Getenv("POD_NAMESPACE")
-		if namespace == "" {
-			namespace = "cluster-assessment-operator"
-		}
-
+		// Security fix: Use the assessment's namespace to prevent cross-tenant secret access
+		// Previously, this used POD_NAMESPACE which allowed accessing operator secrets
 		secret := &corev1.Secret{}
 		err := r.Get(ctx, client.ObjectKey{
 			Name:      gitSpec.SecretRef,
-			Namespace: namespace,
+			Namespace: assessment.Namespace,
 		}, secret)
 		if err != nil {
 			return fmt.Errorf("failed to get git secret: %w", err)
