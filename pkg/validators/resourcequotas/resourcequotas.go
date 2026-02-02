@@ -32,6 +32,9 @@ import (
 	"github.com/openshift-assessment/cluster-assessment-operator/pkg/validator"
 )
 
+// Optimization: Parse 8Gi once at package level
+var eightGi = resource.MustParse("8Gi")
+
 const (
 	validatorName        = "resourcequotas"
 	validatorDescription = "Validates namespace resource governance including ResourceQuotas and LimitRanges"
@@ -238,8 +241,6 @@ func (v *ResourceQuotasValidator) checkLimitRanges(ctx context.Context, c client
 	}
 
 	// Check for very high default limits
-	// Optimization: Parse 8Gi once outside the loop
-	eightGi := resource.MustParse("8Gi")
 	for _, lr := range limitRanges.Items {
 		for _, item := range lr.Spec.Limits {
 			if item.Type == corev1.LimitTypeContainer {
