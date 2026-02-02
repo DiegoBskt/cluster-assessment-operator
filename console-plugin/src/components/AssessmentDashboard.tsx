@@ -51,7 +51,7 @@ export default function AssessmentDashboard() {
     // Get the most recent assessment for summary stats
     const latestAssessment = React.useMemo(() => {
         if (!assessments || assessments.length === 0) return null;
-        return assessments.sort((a, b) => {
+        return [...assessments].sort((a, b) => {
             const timeA = a.status?.lastRunTime || a.metadata.creationTimestamp;
             const timeB = b.status?.lastRunTime || b.metadata.creationTimestamp;
             return new Date(timeB).getTime() - new Date(timeA).getTime();
