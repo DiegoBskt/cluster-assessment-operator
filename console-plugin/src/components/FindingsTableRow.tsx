@@ -116,6 +116,7 @@ export const FindingsTableRow = React.memo(({ finding, rowIndex, isExpanded, onT
                                             rel="noopener noreferrer"
                                             icon={<ExternalLinkAltIcon />}
                                             iconPosition="end"
+                                            aria-label={`${ref} (opens in new tab)`}
                                         >
                                             {ref}
                                         </Button>
