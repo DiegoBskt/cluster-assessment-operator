@@ -89,8 +89,8 @@ oc get csv -n cluster-assessment-operator -w
 
 # Enable the console plugin (optional but recommended)
 oc patch consoles.operator.openshift.io cluster \
-  --type=merge \
-  --patch='{"spec":{"plugins":["cluster-assessment-plugin"]}}'
+  --type=json \
+  --patch='[{"op":"add","path":"/spec/plugins/-","value":"cluster-assessment-plugin"}]'
 ```
 
 Or use the Makefile shortcut:
