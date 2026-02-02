@@ -82,8 +82,6 @@ spec:
                   properties:
                     configMap:
                       type: object
-                      required:
-                        - namespace
                       properties:
                         enabled:
                           type: boolean
@@ -91,7 +89,7 @@ spec:
                           type: string
                         namespace:
                           type: string
-                          description: Namespace where the ConfigMap will be created. Required since ClusterAssessment is cluster-scoped.
+                          description: Namespace where the ConfigMap will be created. Defaults to the operator namespace if not specified.
                         format:
                           type: string
                           description: Report format(s) to generate. Options are json, html, pdf or combinations like "json,html,pdf"

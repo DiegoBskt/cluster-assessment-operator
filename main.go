@@ -107,10 +107,16 @@ func main() {
 	registry := validator.DefaultRegistry()
 	setupLog.Info("Registered validators", "count", len(registry.Names()), "validators", registry.Names())
 
+	operatorNamespace := os.Getenv("OPERATOR_NAMESPACE")
+	if operatorNamespace == "" {
+		operatorNamespace = "cluster-assessment-operator"
+	}
+
 	if err = (&controllers.ClusterAssessmentReconciler{
-		Client:   mgr.GetClient(),
-		Scheme:   mgr.GetScheme(),
-		Registry: registry,
+		Client:            mgr.GetClient(),
+		Scheme:            mgr.GetScheme(),
+		Registry:          registry,
+		OperatorNamespace: operatorNamespace,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ClusterAssessment")
 		os.Exit(1)

@@ -52,8 +52,9 @@ import (
 // ClusterAssessmentReconciler reconciles a ClusterAssessment object
 type ClusterAssessmentReconciler struct {
 	client.Client
-	Scheme   *runtime.Scheme
-	Registry *validator.Registry
+	Scheme            *runtime.Scheme
+	Registry          *validator.Registry
+	OperatorNamespace string
 }
 
 // RerunAnnotation is the annotation key used to trigger a re-run of an assessment
@@ -482,11 +483,17 @@ func (r *ClusterAssessmentReconciler) storeReportInConfigMap(ctx context.Context
 		cmName = fmt.Sprintf("%s-%s", cmName, timestamp)
 	}
 
+	// Default namespace to the operator's namespace if not specified
+	cmNamespace := assessment.Spec.ReportStorage.ConfigMap.Namespace
+	if cmNamespace == "" {
+		cmNamespace = r.OperatorNamespace
+	}
+
 	// Create or update ConfigMap
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      cmName,
-			Namespace: assessment.Spec.ReportStorage.ConfigMap.Namespace,
+			Namespace: cmNamespace,
 			Labels: map[string]string{
 				"app.kubernetes.io/name":       "cluster-assessment-operator",
 				"app.kubernetes.io/managed-by": "cluster-assessment-operator",

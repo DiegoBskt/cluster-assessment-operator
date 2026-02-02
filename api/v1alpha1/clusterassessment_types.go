@@ -80,9 +80,9 @@ type ConfigMapStorageSpec struct {
 	Name string `json:"name,omitempty"`
 
 	// Namespace is the namespace where the ConfigMap will be created.
-	// Required since ClusterAssessment is a cluster-scoped resource.
-	// +kubebuilder:validation:Required
-	Namespace string `json:"namespace"`
+	// Defaults to the operator's namespace if not specified.
+	// +optional
+	Namespace string `json:"namespace,omitempty"`
 
 	// Format specifies the report format(s) to generate.
 	// Valid values are: "json", "html", "pdf", or combinations like "json,html,pdf"

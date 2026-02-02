@@ -79,6 +79,11 @@ spec:
             path: reportStorage
             x-descriptors:
               - urn:alm:descriptor:com.tectonic.ui:fieldGroup:reportStorage
+          - description: Namespace where the report ConfigMap will be created (defaults to operator namespace)
+            displayName: Report ConfigMap Namespace
+            path: reportStorage.configMap.namespace
+            x-descriptors:
+              - urn:alm:descriptor:com.tectonic.ui:text
         statusDescriptors:
           - description: Current phase of the assessment
             displayName: Phase
@@ -349,6 +354,11 @@ spec:
                       - /manager
                     args:
                       - --leader-elect
+                    env:
+                      - name: OPERATOR_NAMESPACE
+                        valueFrom:
+                          fieldRef:
+                            fieldPath: metadata.namespace
                     ports:
                       - containerPort: 8080
                         name: metrics
