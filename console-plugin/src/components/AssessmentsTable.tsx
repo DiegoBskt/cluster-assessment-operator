@@ -102,6 +102,7 @@ export default function AssessmentsTable({ assessments }: AssessmentsTableProps)
                         <Td>
                             <Button
                                 variant="link"
+                                aria-label={`View assessment ${assessment.metadata.name}`}
                                 component={(props: React.HTMLProps<HTMLAnchorElement>) => (
                                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
                                     <Link {...props as any} to={`/cluster-assessment/${assessment.metadata.name}`} />
