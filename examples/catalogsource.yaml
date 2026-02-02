@@ -1,3 +1,10 @@
+# CatalogSource for Cluster Assessment Operator
+# This enables OLM to discover and install the operator from the catalog.
+#
+# The catalog image is automatically updated on each release.
+# OLM polls the registry every 10 minutes for new versions.
+# Combined with a Subscription (installPlanApproval: Automatic),
+# the operator will be automatically upgraded when new versions are released.
 apiVersion: operators.coreos.com/v1alpha1
 kind: CatalogSource
 metadata:
@@ -5,8 +12,9 @@ metadata:
   namespace: openshift-marketplace
 spec:
   displayName: Cluster Assessment Operator
-  publisher: DiegoBskt
+  publisher: Community
   sourceType: grpc
+  # Replace v4.20 with your OCP version (v4.12-v4.20 supported)
   image: ghcr.io/diegobskt/cluster-assessment-operator-catalog:v4.20
   updateStrategy:
     registryPoll:

@@ -82,11 +82,16 @@ spec:
                   properties:
                     configMap:
                       type: object
+                      required:
+                        - namespace
                       properties:
                         enabled:
                           type: boolean
                         name:
                           type: string
+                        namespace:
+                          type: string
+                          description: Namespace where the ConfigMap will be created. Required since ClusterAssessment is cluster-scoped.
                         format:
                           type: string
                           description: Report format(s) to generate. Options are json, html, pdf or combinations like "json,html,pdf"
@@ -104,6 +109,9 @@ spec:
                           type: string
                         secretRef:
                           type: string
+                        secretNamespace:
+                          type: string
+                          description: Namespace of the secret referenced by secretRef. Required when secretRef is set.
                 minSeverity:
                   type: string
                   description: Minimum severity level to include in report (INFO, PASS, WARN, FAIL).

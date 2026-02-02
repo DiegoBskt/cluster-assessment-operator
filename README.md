@@ -28,26 +28,74 @@ The Cluster Assessment Operator is designed for consulting engagements where cus
 
 ## 📦 Quick Start
 
-### 1. Install the Operator
+### 1. Install the Operator (via OLM)
 
-**Option A: Direct Deployment**
+The recommended installation method uses OLM (Operator Lifecycle Manager) which provides:
+- **Automatic updates** when new versions are released
+- **Dependency management** and proper upgrade paths
+- **Console integration** via OperatorHub
 
 ```bash
-# Clone the repository
-git clone https://github.com/diegobskt/cluster-assessment-operator.git
-cd cluster-assessment-operator
+# Detect your OpenShift version
+OCP_VERSION=$(oc version -o json | jq -r '.openshiftVersion' | cut -d. -f1,2 | sed 's/^/v/')
+echo "Detected OpenShift version: $OCP_VERSION"
 
-# Deploy using make (handles order automatically)
-make deploy
+# Deploy the operator (one command)
+oc apply -f - <<EOF
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: CatalogSource
+metadata:
+  name: cluster-assessment-catalog
+  namespace: openshift-marketplace
+spec:
+  sourceType: grpc
+  image: ghcr.io/diegobskt/cluster-assessment-operator-catalog:${OCP_VERSION}
+  displayName: Cluster Assessment Operator
+  publisher: Community
+  updateStrategy:
+    registryPoll:
+      interval: 10m
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cluster-assessment-operator
+  labels:
+    openshift.io/cluster-monitoring: "true"
+---
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: cluster-assessment-operator
+  namespace: cluster-assessment-operator
+spec: {}
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: cluster-assessment-operator
+  namespace: cluster-assessment-operator
+spec:
+  channel: stable-v1
+  name: cluster-assessment-operator
+  source: cluster-assessment-catalog
+  sourceNamespace: openshift-marketplace
+  installPlanApproval: Automatic
+EOF
+
+# Wait for the operator to be installed
+oc get csv -n cluster-assessment-operator -w
+
+# Enable the console plugin (optional but recommended)
+oc patch consoles.operator.openshift.io cluster \
+  --type=merge \
+  --patch='{"spec":{"plugins":["cluster-assessment-plugin"]}}'
 ```
 
-**Option B: Manual Deployment**
-
+Or use the Makefile shortcut:
 ```bash
-# Install CRDs, namespace, RBAC, and manager (order matters!)
-oc apply -f config/crd/bases/
-oc apply -f config/manager/    # Creates namespace first
-oc apply -f config/rbac/       # Requires namespace to exist
+make deploy-olm
 ```
 
 ### 2. Run Your First Assessment
@@ -82,6 +130,9 @@ oc get configmap my-assessment-report -n cluster-assessment-operator \
   -o jsonpath='{.data.report\.html}' > report.html
 open report.html
 ```
+
+> **Note**: The operator will automatically update when new versions are released (via `installPlanApproval: Automatic`).
+> OLM polls the catalog every 10 minutes for updates.
 
 ---
 
@@ -246,87 +297,27 @@ This operator uses **File Based Catalog (FBC)** format following [OLM best pract
 | `make scorecard` | Run OLM scorecard tests |
 | `make preflight` | Run Red Hat Preflight checks |
 
-### Deploy via OLM
+### Deployment Commands
 
-**Option 1: Quick Deploy (Testing)**
-```bash
-make bundle-buildx
-make deploy-olm
+| Command | Description |
+|---------|-------------|
+| `make deploy-olm` | **Recommended**: Deploy via OLM with automatic updates |
+| `make undeploy-olm` | Complete OLM cleanup (operator, CRDs, namespace) |
+| `make deploy` | Development only: Direct deployment without OLM |
+| `make undeploy` | Cleanup direct deployment |
 
-# To uninstall
-make undeploy-olm
-```
+> **Important**: Always use `make deploy-olm` for production. Direct deployment (`make deploy`) does not support automatic updates.
 
-**Option 2: CatalogSource (Production)**
+### Example Resources
 
-The catalog images are automatically built for all supported OCP versions (v4.12-v4.20) and always contain the latest operator version.
+The `examples/` directory contains individual YAML files for manual deployment:
 
-1. Detect your OpenShift version and deploy:
-```bash
-# Auto-detect OCP version
-OCP_VERSION=$(oc version -o json | jq -r '.openshiftVersion' | cut -d. -f1,2 | sed 's/^/v/')
-echo "Detected OpenShift version: $OCP_VERSION"
-
-# Deploy the operator
-oc apply -f - <<EOF
----
-apiVersion: operators.coreos.com/v1alpha1
-kind: CatalogSource
-metadata:
-  name: cluster-assessment-catalog
-  namespace: openshift-marketplace
-spec:
-  sourceType: grpc
-  image: ghcr.io/diegobskt/cluster-assessment-operator-catalog:${OCP_VERSION}
-  displayName: Cluster Assessment Operator
-  publisher: Community
-  updateStrategy:
-    registryPoll:
-      interval: 10m
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: cluster-assessment-operator
-  labels:
-    openshift.io/cluster-monitoring: "true"
----
-apiVersion: operators.coreos.com/v1
-kind: OperatorGroup
-metadata:
-  name: cluster-assessment-operator
-  namespace: cluster-assessment-operator
-spec: {}
----
-apiVersion: operators.coreos.com/v1alpha1
-kind: Subscription
-metadata:
-  name: cluster-assessment-operator
-  namespace: cluster-assessment-operator
-spec:
-  channel: stable-v1
-  name: cluster-assessment-operator
-  source: cluster-assessment-catalog
-  sourceNamespace: openshift-marketplace
-  installPlanApproval: Automatic
-EOF
-```
-
-2. Wait and verify:
-```bash
-# Wait for CSV to be installed
-oc get csv -n cluster-assessment-operator -w
-
-# Verify pods are running
-oc get pods -n cluster-assessment-operator
-```
-
-3. Enable the console plugin:
-```bash
-oc patch consoles.operator.openshift.io cluster \
-  --type=merge \
-  --patch='{"spec":{"plugins":["cluster-assessment-plugin"]}}'
-```
+| File | Description |
+|------|-------------|
+| `catalogsource.yaml` | OLM CatalogSource pointing to the catalog image |
+| `operatorgroup.yaml` | Namespace and OperatorGroup |
+| `subscription.yaml` | Subscription for automatic operator updates |
+| `clusterassessment.yaml` | Sample ClusterAssessment resource |
 
 > **Note**: See [docs/RELEASE.md](docs/RELEASE.md) for detailed release process and version management documentation.
 
@@ -348,18 +339,7 @@ oc patch consoles.operator.openshift.io cluster \
 
 The Cluster Assessment Operator includes an **OpenShift Console Plugin** that provides a dedicated UI under **Observe > Cluster Assessment**.
 
-### Deploy Console Plugin
-
-The console plugin is included in the default deployment:
-
-```bash
-# Deploy operator + console plugin
-make deploy
-```
-
-### Enable the Plugin
-
-Enable the plugin in OpenShift Console:
+The console plugin is automatically deployed with the operator. After installation, enable it:
 
 ```bash
 oc patch consoles.operator.openshift.io cluster \
@@ -367,15 +347,7 @@ oc patch consoles.operator.openshift.io cluster \
   --patch='{"spec":{"plugins":["cluster-assessment-plugin"]}}'
 ```
 
-### Verify
-
-Refresh the OpenShift Console. Navigate to **Observe > Cluster Assessment** to view assessment dashboards.
-
-### Undeploy
-
-```bash
-make undeploy
-```
+Refresh the OpenShift Console and navigate to **Observe > Cluster Assessment** to view assessment dashboards.
 
 ---
 
@@ -417,21 +389,7 @@ flowchart TB
 
 ---
 
-## 🖥️ Console Plugin
-
-The operator includes an OpenShift Dynamic Console Plugin for visual cluster assessment management.
-
-### Enable the Console Plugin
-
-```bash
-# Deploy operator + console plugin
-make deploy
-```
-
-### Access the UI
-
-Once deployed, navigate to:
-- **OpenShift Console** → **Observe** → **Cluster Assessment**
+## 🖥️ Console Plugin Details
 
 The UI provides:
 - Dashboard view of all assessments
@@ -440,15 +398,11 @@ The UI provides:
 - Category grouping
 - Health score gauge
 
-### Console Plugin Architecture
-
 | Component | Location | Purpose |
 |-----------|----------|---------|
 | React App | `console-plugin/src/` | UI components |
 | Extensions | `console-plugin/console-extensions.json` | Console integration |
 | Deployment | `config/console-plugin/` | Kubernetes manifests |
-
----
 
 ## 📚 Additional Documentation
 
