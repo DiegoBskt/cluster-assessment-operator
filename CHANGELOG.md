@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.35] - 2026-02-02
+
+### Fixed
+- **Release Workflow**: Fixed catalog generation to dynamically render catalogs using `opm` after bundle image is pushed
+  - Previous releases had stale catalogs because `catalogs/` directory wasn't regenerated
+  - Workflow now uses `opm alpha render-template` to generate fresh catalogs from templates
+  - This ensures OLM sees the correct version immediately after release
+
 ## [1.2.34] - 2026-02-02
 
 ### Fixed
