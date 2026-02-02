@@ -15,6 +15,161 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Controller now detects `assessment.openshift.io/rerun` annotation and triggers fresh assessment
   - Previous findings are properly cleared before new assessment runs
 
+## [1.2.32] - 2026-01-29
+
+### Changed
+- Updated all catalog files to reference v1.2.32 bundle
+- Various bug fixes and stability improvements from v1.2.12-v1.2.31
+
+### Fixed
+- **UI Stability**: Prevent UI from going blank by implementing stable assessment data and ensure non-mutating array sorting
+- **Security**: Fix stored XSS vulnerability in HTML report generation
+- **Security**: Fix cross-tenant secret access in git export functionality
+- **Security**: Secure git secret lookup to prevent cross-tenant access
+- **Namespace Isolation**: Fix namespace isolation for reports and secrets
+
+### Added
+- **Git Export**: Implement git export for assessment reports to remote repositories
+- **Empty States**: Add empty states to findings table for better UX
+- **Accessibility**: Enhance accessibility for tables and external links
+- **Helper Text**: Add helper text for assessment profile selection
+- **Report Validation**: Add validation for report formats
+- **Disabled States**: Disable Create Assessment modal inputs during submission
+
+### Performance
+- Optimize resourcequotas validator with hoisted resource parsing
+- Optimize node listing in cluster assessment controller using PartialObjectMetadata
+- Optimize etcdbackup validator CronJob listing using PartialObjectMetadata
+- Optimize FindingsTable rendering with React.memo
+- Hoist `resource.MustParse` out of loops in validators
+
+## [1.2.31] - 2026-01-21
+
+### Added
+- **OLM Console Plugin Deployment**: Console plugin is now automatically deployed when operator is installed via OLM
+  - Added console plugin deployment to CSV install.spec.deployments
+  - Added ConsolePlugin CR and Service to bundle manifests
+  - Makefile now syncs console plugin image version in bundle
+
+## [1.2.30] - 2026-01-20
+
+### Changed
+- Release preparation and version bump
+
+## [1.2.29] - 2026-01-20
+
+### Fixed
+- Update bundle CSV version to v1.2.29 for proper OLM catalog support
+- Update all deployment manifests to v1.2.29
+- Update catalog templates to reference v1.2.29 bundle
+
+## [1.2.28] - 2026-01-20
+
+### Added
+- **VERSION File**: Single source of truth for version management
+- **Release Automation**: `scripts/update-catalogs.sh` for automated catalog updates
+- **Release Documentation**: `docs/RELEASE.md` with comprehensive release documentation
+- **Agent Workflows**: `.agent/workflows` for deploy-operator and cleanup-operator
+- **Makefile Targets**: `version`, `update-manifests`, `update-catalogs`, `release-prep`
+
+### Changed
+- Improved README.md with better deployment instructions
+- Updated all manifests and catalogs to v1.2.28
+
+## [1.2.27] - 2026-01-20
+
+### Fixed
+- **RBAC Permissions**: Added permissions for all validator API groups
+  - `imageregistry.operator.openshift.io` (configs, imagepruners)
+  - `logging.openshift.io` (clusterloggings, clusterlogforwarders)
+  - `oadp.openshift.io` (dataprotectionapplications)
+  - `operators.coreos.com` (subscriptions, CSVs, installplans, catalogsources)
+
+## [1.2.26] - 2026-01-19
+
+### Fixed
+- **Cache Busting**: Aggressive cache-busting for all plugin assets
+  - Set no-store on ALL JS, CSS, and JSON files
+  - Disabled ETags globally
+  - Added `if_modified_since off` to prevent 304 responses
+  - Added `Expires: 0` header for maximum compatibility
+
+## [1.2.25] - 2026-01-19
+
+### Changed
+- **OpenShift 4.20 Compatibility**: Major upgrade for console plugin
+  - Updated `@openshift-console/dynamic-plugin-sdk` to 4.20.0
+  - Updated `@openshift-console/dynamic-plugin-sdk-webpack` to 4.20.0
+  - Migrated to PatternFly 5.4.14 (tables, forms, modals)
+  - Updated table components to use Thead/Tbody/Tr/Th/Td syntax
+  - Updated form event handlers to new `(_event, value)` signature
+  - Updated CSS variables to `--pf-v5-global-*` format
+
+## [1.2.24] - 2026-01-19
+
+### Fixed
+- Aligned package.json with official console plugin template
+- Added react-i18next dependency
+
+## [1.2.23] - 2026-01-19
+
+### Fixed
+- Use export default function pattern matching official console plugin template
+
+## [1.2.22] - 2026-01-19
+
+### Fixed
+- Aligned SDK/webpack versions and exposed modules for module federation compatibility
+
+## [1.2.21] - 2026-01-19
+
+### Fixed
+- Updated nginx cache headers to prevent stale cache after plugin updates
+
+## [1.2.20] - 2026-01-19
+
+### Added
+- **Theme Support**: Theme-aware styling with PatternFly CSS variables for light/dark mode
+
+## [1.2.19] - 2026-01-19
+
+### Changed
+- **Enhanced UI**: Console plugin UI with modern styling and card layout
+
+## [1.2.18] - 2026-01-19
+
+### Fixed
+- Restored full console plugin components (Chrome bug was the issue, not the code)
+
+## [1.2.17] - 2026-01-19
+
+### Fixed
+- Use explicit `.default` reference in codeRef for lazy loading
+
+## [1.2.16] - 2026-01-19
+
+### Fixed
+- Updated SDK to v4.20.0 and webpack to 5.75.0 to fix React error #306
+
+## [1.2.15] - 2026-01-17
+
+### Added
+- Minimal plugin for debugging React error #306
+
+## [1.2.14] - 2026-01-16
+
+### Fixed
+- Resolved circular imports by creating shared types file
+
+## [1.2.13] - 2026-01-16
+
+### Fixed
+- Replaced deprecated Select with FormSelect to fix React error #306
+
+## [1.2.12] - 2026-01-16
+
+### Fixed
+- Corrected TypeScript errors in CreateAssessmentModal
 
 ## [1.2.11] - 2026-01-16
 
@@ -161,16 +316,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date | Description |
 |---------|------|-------------|
-| 1.2.10 | 2026-01-16 | Console plugin nginx fix for read-only filesystem |
-| 1.2.9 | 2026-01-16 | New CatalogSource, controller improvements |
-| 1.2.8 | 2026-01-16 | Added limitranges RBAC permission |
-| 1.2.7 | 2026-01-16 | Added resourcequotas RBAC permission |
+| 1.2.33 | 2026-02-02 | Re-run Assessment button fix |
+| 1.2.32 | 2026-01-29 | Security fixes, git export, performance optimizations |
+| 1.2.31 | 2026-01-21 | OLM console plugin deployment |
+| 1.2.28 | 2026-01-20 | Version management, release automation |
+| 1.2.27 | 2026-01-20 | RBAC permissions for all validators |
+| 1.2.26 | 2026-01-19 | Aggressive cache busting |
+| 1.2.25 | 2026-01-19 | OpenShift 4.20 / PatternFly 5 upgrade |
+| 1.2.20 | 2026-01-19 | Theme support (light/dark mode) |
+| 1.2.19 | 2026-01-19 | Enhanced UI with card layout |
+| 1.2.11 | 2026-01-16 | Create Assessment modal |
+| 1.2.10 | 2026-01-16 | Console plugin nginx TLS fix |
 | 1.2.0 | 2026-01-15 | OpenShift Dynamic Console Plugin |
-| 1.1.1 | 2026-01-15 | FBC fix, ConfigMap timestamp enhancement |
 | 1.1.0 | 2026-01-15 | 6 new validators (18 total) |
 | 1.0.0 | 2026-01-14 | Initial release |
 
-[Unreleased]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.2.10...HEAD
+[Unreleased]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.2.33...HEAD
+[1.2.33]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.2.32...v1.2.33
+[1.2.32]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.2.31...v1.2.32
+[1.2.31]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.2.30...v1.2.31
+[1.2.30]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.2.29...v1.2.30
+[1.2.29]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.2.28...v1.2.29
+[1.2.28]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.2.27...v1.2.28
+[1.2.27]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.2.26...v1.2.27
+[1.2.26]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.2.25...v1.2.26
+[1.2.25]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.2.24...v1.2.25
+[1.2.24]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.2.23...v1.2.24
+[1.2.23]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.2.22...v1.2.23
+[1.2.22]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.2.21...v1.2.22
+[1.2.21]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.2.20...v1.2.21
+[1.2.20]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.2.19...v1.2.20
+[1.2.19]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.2.18...v1.2.19
+[1.2.18]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.2.17...v1.2.18
+[1.2.17]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.2.16...v1.2.17
+[1.2.16]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.2.15...v1.2.16
+[1.2.15]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.2.14...v1.2.15
+[1.2.14]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.2.13...v1.2.14
+[1.2.13]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.2.12...v1.2.13
+[1.2.12]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.2.11...v1.2.12
+[1.2.11]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.2.10...v1.2.11
 [1.2.10]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.2.9...v1.2.10
 [1.2.9]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.2.8...v1.2.9
 [1.2.8]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.2.7...v1.2.8
@@ -185,4 +369,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [1.1.1]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/diegobskt/cluster-assessment-operator/releases/tag/v1.0.0
-
