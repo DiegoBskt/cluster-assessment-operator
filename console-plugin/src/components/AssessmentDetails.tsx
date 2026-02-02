@@ -59,15 +59,31 @@ export default function AssessmentDetails() {
     const [activeTabKey, setActiveTabKey] = React.useState<string | number>(0);
     const [isRerunning, setIsRerunning] = React.useState(false);
 
-    // Memoize resource config to prevent watch resets on re-renders
+    // Stable assessment data that only gets replaced with valid complete data.
+    // This prevents the UI from going blank when the watch returns empty/stale data.
+    const [stableAssessment, setStableAssessment] = React.useState<ClusterAssessment | undefined>();
+
     const resourceConfig = React.useMemo(
         () => clusterAssessmentResource(name || ''),
         [name]
     );
 
-    const [assessment, loaded, error] = useK8sWatchResource<ClusterAssessment>(
-        resourceConfig
-    );
+    const [watchData, loaded, error] = useK8sWatchResource<ClusterAssessment>(resourceConfig);
+
+    // Only update stableAssessment when the watch returns data with findings
+    React.useEffect(() => {
+        if (
+            watchData &&
+            watchData.status &&
+            watchData.status.findings &&
+            watchData.status.findings.length > 0
+        ) {
+            setStableAssessment(watchData);
+        }
+    }, [watchData]);
+
+    // Use stableAssessment if available, otherwise fall back to watchData
+    const assessment = stableAssessment || watchData;
 
     // Handle re-run assessment
     const handleRerun = async () => {
@@ -75,7 +91,7 @@ export default function AssessmentDetails() {
 
         setIsRerunning(true);
         try {
-            // Patch the status phase to 'Pending' to trigger re-run
+            setStableAssessment(undefined);
             await k8sPatch({
                 model: clusterAssessmentModel,
                 resource: assessment,
@@ -99,7 +115,7 @@ export default function AssessmentDetails() {
         }
     };
 
-    if (error) {
+    if (error && !stableAssessment) {
         return (
             <Page>
                 <PageSection>
@@ -113,7 +129,7 @@ export default function AssessmentDetails() {
         );
     }
 
-    if (!loaded) {
+    if (!loaded && !stableAssessment) {
         return (
             <Page>
                 <PageSection>
