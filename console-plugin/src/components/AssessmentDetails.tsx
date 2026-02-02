@@ -92,21 +92,17 @@ export default function AssessmentDetails() {
         setIsRerunning(true);
         try {
             setStableAssessment(undefined);
+            // Add re-run annotation to trigger controller reconciliation
             await k8sPatch({
                 model: clusterAssessmentModel,
                 resource: assessment,
                 data: [
                     {
-                        op: 'replace',
-                        path: '/status/phase',
-                        value: 'Pending',
-                    },
-                    {
-                        op: 'remove',
-                        path: '/status/findings',
+                        op: 'add',
+                        path: '/metadata/annotations/assessment.openshift.io~1rerun',
+                        value: new Date().toISOString(),
                     },
                 ],
-                path: 'status',
             });
         } catch (err) {
             console.error('Failed to re-run assessment:', err);

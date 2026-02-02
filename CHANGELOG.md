@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.33] - 2026-02-02
+
+### Fixed
+- **Re-run Assessment Button**: Fixed the "Re-run Assessment" button in the Console Plugin that was not triggering new assessments
+  - Changed from status patching to annotation-based trigger mechanism
+  - Controller now detects `assessment.openshift.io/rerun` annotation and triggers fresh assessment
+  - Previous findings are properly cleared before new assessment runs
+
+
 ## [1.2.11] - 2026-01-16
 
 ### Added

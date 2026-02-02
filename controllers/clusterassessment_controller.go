@@ -56,6 +56,9 @@ type ClusterAssessmentReconciler struct {
 	Registry *validator.Registry
 }
 
+// RerunAnnotation is the annotation key used to trigger a re-run of an assessment
+const RerunAnnotation = "assessment.openshift.io/rerun"
+
 // +kubebuilder:rbac:groups=assessment.openshift.io,resources=clusterassessments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=assessment.openshift.io,resources=clusterassessments/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=assessment.openshift.io,resources=clusterassessments/finalizers,verbs=update
@@ -98,6 +101,18 @@ func (r *ClusterAssessmentReconciler) Reconcile(ctx context.Context, req ctrl.Re
 // reconcileOneTime handles one-time assessments.
 func (r *ClusterAssessmentReconciler) reconcileOneTime(ctx context.Context, assessment *assessmentv1alpha1.ClusterAssessment) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
+
+	// Check for re-run annotation - this triggers a new assessment even if completed
+	if _, hasRerunAnnotation := assessment.Annotations[RerunAnnotation]; hasRerunAnnotation {
+		logger.Info("Re-run annotation detected, triggering new assessment")
+		// Remove the annotation and reset status
+		if err := r.clearRerunAnnotation(ctx, assessment); err != nil {
+			logger.Error(err, "Failed to clear re-run annotation")
+			return ctrl.Result{}, err
+		}
+		// Continue to run the assessment
+		return r.runAssessment(ctx, assessment)
+	}
 
 	// Skip if already completed
 	if assessment.Status.Phase == assessmentv1alpha1.PhaseCompleted {
@@ -698,6 +713,34 @@ func (r *ClusterAssessmentReconciler) updateStatus(ctx context.Context, assessme
 	assessment.Status.Phase = phase
 	assessment.Status.Message = message
 	return ctrl.Result{}, nil
+}
+
+// clearRerunAnnotation removes the re-run annotation and resets the status for a fresh assessment run.
+func (r *ClusterAssessmentReconciler) clearRerunAnnotation(ctx context.Context, assessment *assessmentv1alpha1.ClusterAssessment) error {
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		// Fetch latest version
+		latest := &assessmentv1alpha1.ClusterAssessment{}
+		if err := r.Get(ctx, client.ObjectKeyFromObject(assessment), latest); err != nil {
+			return err
+		}
+
+		// Remove the re-run annotation
+		if latest.Annotations != nil {
+			delete(latest.Annotations, RerunAnnotation)
+		}
+
+		// Update the resource (this removes the annotation)
+		if err := r.Update(ctx, latest); err != nil {
+			return err
+		}
+
+		// Reset status for fresh run
+		latest.Status.Phase = assessmentv1alpha1.PhasePending
+		latest.Status.Message = "Re-run triggered"
+		latest.Status.Findings = nil
+		latest.Status.Summary = assessmentv1alpha1.AssessmentSummary{}
+		return r.Status().Update(ctx, latest)
+	})
 }
 
 // recordValidatorMetrics records metrics for each validator
