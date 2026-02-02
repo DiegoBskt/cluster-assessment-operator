@@ -56,6 +56,15 @@ const getStatusLabel = (status: string) => {
     }
 };
 
+const isValidUrl = (urlString: string) => {
+    try {
+        const url = new URL(urlString);
+        return url.protocol === 'http:' || url.protocol === 'https:';
+    } catch (e) {
+        return false;
+    }
+};
+
 // Memoized component to prevent re-rendering all rows when one is expanded/collapsed.
 // This significantly improves performance for large lists of findings.
 export const FindingsTableRow = React.memo(({ finding, rowIndex, isExpanded, onToggle }: FindingsTableRowProps) => {
@@ -105,22 +114,32 @@ export const FindingsTableRow = React.memo(({ finding, rowIndex, isExpanded, onT
                             {finding.references && finding.references.length > 0 && (
                                 <>
                                     <Text component={TextVariants.h4}>References</Text>
-                                    {finding.references.map((ref, i) => (
-                                        <Button
-                                            key={i}
-                                            variant="link"
-                                            isInline
-                                            component="a"
-                                            href={ref}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            icon={<ExternalLinkAltIcon />}
-                                            iconPosition="end"
-                                            aria-label={`${ref} (opens in new tab)`}
-                                        >
-                                            {ref}
-                                        </Button>
-                                    ))}
+                                    {finding.references.map((ref, i) => {
+                                        if (isValidUrl(ref)) {
+                                            return (
+                                                <Button
+                                                    key={i}
+                                                    variant="link"
+                                                    isInline
+                                                    component="a"
+                                                    href={ref}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    icon={<ExternalLinkAltIcon />}
+                                                    iconPosition="end"
+                                                    aria-label={`${ref} (opens in new tab)`}
+                                                    style={{ display: 'block', marginBottom: '4px' }}
+                                                >
+                                                    {ref}
+                                                </Button>
+                                            );
+                                        }
+                                        return (
+                                            <Text key={i} component={TextVariants.p}>
+                                                {ref}
+                                            </Text>
+                                        );
+                                    })}
                                 </>
                             )}
                         </TextContent>
