@@ -61,15 +61,7 @@ REGISTRY="ghcr.io/diegobskt"
 OPERATOR_NAME="cluster-assessment-operator"
 BUNDLE_IMAGE="${REGISTRY}/${OPERATOR_NAME}-bundle:v${NEW_VERSION}"
 
-# Determine previous version from git tags for the replaces field
-PREVIOUS_VERSION=$(git -C "$PROJECT_ROOT" tag -l 'v*' --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | grep -v "^v${NEW_VERSION}$" | head -1 | sed 's/^v//')
-
 log_info "Updating catalogs for version: v${NEW_VERSION}"
-if [[ -n "$PREVIOUS_VERSION" ]]; then
-    log_info "Previous version (replaces): v${PREVIOUS_VERSION}"
-else
-    log_warn "No previous version found. Channel entries will not include a replaces field."
-fi
 log_info "Bundle image: ${BUNDLE_IMAGE}"
 
 # Process each catalog template
@@ -85,15 +77,10 @@ for template in "$CATALOG_TEMPLATES_DIR"/v4.*.yaml; do
     # The basic template expects ONLY the image attribute for olm.bundle entries
     # See: https://olm.operatorframework.io/docs/reference/catalog-templates/
     #
-    # The replaces field is required for OLM to build a valid upgrade graph.
-    # Without it, OLM cannot determine the upgrade path from the previous version.
-    if [[ -n "$PREVIOUS_VERSION" ]]; then
-        REPLACES_LINE="
-        replaces: cluster-assessment-operator.v${PREVIOUS_VERSION}"
-    else
-        REPLACES_LINE=""
-    fi
-
+    # Upgrade path is handled by olm.skipRange in the CSV annotation, not by
+    # the replaces field. This catalog carries only the latest bundle, so using
+    # replaces would reference a bundle not present in the catalog, which can
+    # cause OLM to reject the upgrade graph.
     cat > "$template" << EOF
 # Basic FBC catalog template for cluster-assessment-operator
 # Channels per OLM best practices: https://olm.operatorframework.io/docs/best-practices/channel-naming/
@@ -113,17 +100,17 @@ entries:
     name: stable-v1
     package: cluster-assessment-operator
     entries:
-      - name: cluster-assessment-operator.v${NEW_VERSION}${REPLACES_LINE}
+      - name: cluster-assessment-operator.v${NEW_VERSION}
   - schema: olm.channel
     name: candidate-v1
     package: cluster-assessment-operator
     entries:
-      - name: cluster-assessment-operator.v${NEW_VERSION}${REPLACES_LINE}
+      - name: cluster-assessment-operator.v${NEW_VERSION}
   - schema: olm.channel
     name: fast-v1
     package: cluster-assessment-operator
     entries:
-      - name: cluster-assessment-operator.v${NEW_VERSION}${REPLACES_LINE}
+      - name: cluster-assessment-operator.v${NEW_VERSION}
   - schema: olm.bundle
     image: ${BUNDLE_IMAGE}
 EOF
