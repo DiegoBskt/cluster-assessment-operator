@@ -486,7 +486,7 @@ func (r *ClusterAssessmentReconciler) storeReportInConfigMap(ctx context.Context
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      cmName,
-			Namespace: assessment.Namespace,
+			Namespace: assessment.Spec.ReportStorage.ConfigMap.Namespace,
 			Labels: map[string]string{
 				"app.kubernetes.io/name":       "cluster-assessment-operator",
 				"app.kubernetes.io/managed-by": "cluster-assessment-operator",
@@ -497,10 +497,9 @@ func (r *ClusterAssessmentReconciler) storeReportInConfigMap(ctx context.Context
 		BinaryData: binaryData,
 	}
 
-	// Set owner reference
-	if err := ctrl.SetControllerReference(assessment, cm, r.Scheme); err != nil {
-		logger.Error(err, "Failed to set owner reference on ConfigMap")
-	}
+	// Note: ClusterAssessment is cluster-scoped, so we cannot set a standard
+	// owner reference on a namespace-scoped ConfigMap. We use labels instead
+	// to track the relationship.
 
 	// Create or update
 	existingCM := &corev1.ConfigMap{}
@@ -541,7 +540,7 @@ func (r *ClusterAssessmentReconciler) exportToGit(ctx context.Context, assessmen
 		secret := &corev1.Secret{}
 		err := r.Get(ctx, client.ObjectKey{
 			Name:      gitSpec.SecretRef,
-			Namespace: assessment.Namespace,
+			Namespace: gitSpec.SecretNamespace,
 		}, secret)
 		if err != nil {
 			return fmt.Errorf("failed to get git secret: %w", err)

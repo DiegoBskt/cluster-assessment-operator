@@ -79,6 +79,11 @@ type ConfigMapStorageSpec struct {
 	// +optional
 	Name string `json:"name,omitempty"`
 
+	// Namespace is the namespace where the ConfigMap will be created.
+	// Required since ClusterAssessment is a cluster-scoped resource.
+	// +kubebuilder:validation:Required
+	Namespace string `json:"namespace"`
+
 	// Format specifies the report format(s) to generate.
 	// Valid values are: "json", "html", "pdf", or combinations like "json,html,pdf"
 	// Defaults to "json"
@@ -108,6 +113,11 @@ type GitStorageSpec struct {
 	// The secret should contain 'username' and 'password' or 'token' keys.
 	// +optional
 	SecretRef string `json:"secretRef,omitempty"`
+
+	// SecretNamespace is the namespace of the secret referenced by SecretRef.
+	// Required when SecretRef is set, since ClusterAssessment is cluster-scoped.
+	// +optional
+	SecretNamespace string `json:"secretNamespace,omitempty"`
 }
 
 // ClusterAssessmentStatus defines the observed state of ClusterAssessment

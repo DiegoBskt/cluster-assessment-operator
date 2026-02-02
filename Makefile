@@ -66,10 +66,15 @@ deps: ## Download and tidy dependencies.
 	go mod download
 	go mod tidy
 
-##@ Deployment (Direct - for Development)
+##@ Deployment (Direct - Development Only)
+# WARNING: Direct deployment does NOT support automatic updates.
+# Use 'make deploy-olm' for production.
 
 .PHONY: deploy
-deploy: ## Deploy operator + console plugin directly (dev mode, no OLM).
+deploy: ## Deploy operator directly (dev mode, no automatic updates).
+	@echo "WARNING: Direct deployment does not support automatic updates."
+	@echo "Use 'make deploy-olm' for production deployments."
+	@echo ""
 	@echo "Deploying operator and console plugin..."
 	kubectl apply -f config/crd/bases/
 	kubectl apply -f config/rbac/
@@ -81,7 +86,7 @@ deploy: ## Deploy operator + console plugin directly (dev mode, no OLM).
 	@echo "Deployment complete! Run: oc get pods -n cluster-assessment-operator"
 
 .PHONY: undeploy
-undeploy: ## Undeploy operator + console plugin (dev mode).
+undeploy: ## Undeploy operator (dev mode).
 	@echo "Undeploying operator and console plugin..."
 	-oc patch consoles.operator.openshift.io cluster --type=json --patch='[{"op": "remove", "path": "/spec/plugins"}]' 2>/dev/null
 	-kubectl delete -f config/console-plugin/
@@ -90,7 +95,7 @@ undeploy: ## Undeploy operator + console plugin (dev mode).
 	-kubectl delete -f config/crd/bases/
 	@echo "Undeploy complete!"
 
-##@ Deployment (OLM - for Production)
+##@ Deployment (OLM - Recommended for Production)
 
 .PHONY: deploy-olm
 deploy-olm: ## Deploy operator via OLM CatalogSource (production).
