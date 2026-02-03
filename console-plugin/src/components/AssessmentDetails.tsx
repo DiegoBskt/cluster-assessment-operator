@@ -19,6 +19,8 @@ import {
     Tabs,
     Tab,
     TabTitleText,
+    Modal,
+    ModalVariant,
 } from '@patternfly/react-core';
 import {
     ExclamationCircleIcon,
@@ -58,6 +60,7 @@ export default function AssessmentDetails() {
     const { name } = useParams<{ name: string }>();
     const [activeTabKey, setActiveTabKey] = React.useState<string | number>(0);
     const [isRerunning, setIsRerunning] = React.useState(false);
+    const [isConfirmModalOpen, setIsConfirmModalOpen] = React.useState(false);
 
     // Stable assessment data that only gets replaced with valid complete data.
     // This prevents the UI from going blank when the watch returns empty/stale data.
@@ -85,10 +88,21 @@ export default function AssessmentDetails() {
     // Use stableAssessment if available, otherwise fall back to watchData
     const assessment = stableAssessment || watchData;
 
+    // Open confirmation modal
+    const openConfirmModal = () => {
+        setIsConfirmModalOpen(true);
+    };
+
+    // Close confirmation modal
+    const closeConfirmModal = () => {
+        setIsConfirmModalOpen(false);
+    };
+
     // Handle re-run assessment
     const handleRerun = async () => {
         if (!assessment || !name) return;
 
+        closeConfirmModal();
         setIsRerunning(true);
         try {
             setStableAssessment(undefined);
@@ -111,9 +125,19 @@ export default function AssessmentDetails() {
                 });
             }
 
+            // Build a proper resource object with required fields for k8sPatch
+            const resourceForPatch = {
+                apiVersion: 'assessment.openshift.io/v1alpha1',
+                kind: 'ClusterAssessment',
+                metadata: {
+                    name: assessment.metadata.name,
+                    ...(assessment.metadata.annotations && { annotations: assessment.metadata.annotations }),
+                },
+            };
+
             await k8sPatch({
                 model: clusterAssessmentModel,
-                resource: assessment,
+                resource: resourceForPatch,
                 data: patches,
             });
         } catch (err) {
@@ -202,7 +226,7 @@ export default function AssessmentDetails() {
                         <Button
                             variant="secondary"
                             icon={<SyncIcon />}
-                            onClick={handleRerun}
+                            onClick={openConfirmModal}
                             isLoading={isRerunning}
                             isDisabled={isRerunning || assessment?.status?.phase === 'Running'}
                         >
@@ -211,6 +235,25 @@ export default function AssessmentDetails() {
                     </SplitItem>
                 </Split>
             </PageSection>
+
+            {/* Confirmation Modal */}
+            <Modal
+                variant={ModalVariant.small}
+                title="Re-run Assessment"
+                isOpen={isConfirmModalOpen}
+                onClose={closeConfirmModal}
+                actions={[
+                    <Button key="confirm" variant="primary" onClick={handleRerun}>
+                        Re-run
+                    </Button>,
+                    <Button key="cancel" variant="link" onClick={closeConfirmModal}>
+                        Cancel
+                    </Button>,
+                ]}
+            >
+                Are you sure you want to re-run the assessment <strong>{name}</strong>? This will
+                trigger a new assessment run and update the results.
+            </Modal>
 
             {/* Cards Grid Section */}
             <PageSection>
