@@ -4,6 +4,7 @@ export interface ClusterAssessment {
     metadata: {
         name: string;
         creationTimestamp: string;
+        annotations?: Record<string, string>;
     };
     spec: {
         profile?: string;

@@ -93,16 +93,28 @@ export default function AssessmentDetails() {
         try {
             setStableAssessment(undefined);
             // Add re-run annotation to trigger controller reconciliation
+            // Use JSON Patch operations that handle missing annotations object
+            const patches: { op: string; path: string; value?: unknown }[] = [];
+
+            // If annotations don't exist, create the object first
+            if (!assessment.metadata?.annotations) {
+                patches.push({
+                    op: 'add',
+                    path: '/metadata/annotations',
+                    value: { 'assessment.openshift.io/rerun': new Date().toISOString() },
+                });
+            } else {
+                patches.push({
+                    op: 'add',
+                    path: '/metadata/annotations/assessment.openshift.io~1rerun',
+                    value: new Date().toISOString(),
+                });
+            }
+
             await k8sPatch({
                 model: clusterAssessmentModel,
                 resource: assessment,
-                data: [
-                    {
-                        op: 'add',
-                        path: '/metadata/annotations/assessment.openshift.io~1rerun',
-                        value: new Date().toISOString(),
-                    },
-                ],
+                data: patches,
             });
         } catch (err) {
             console.error('Failed to re-run assessment:', err);
