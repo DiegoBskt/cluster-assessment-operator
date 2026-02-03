@@ -247,13 +247,13 @@ bundle-buildx: ## Build and push multi-arch bundle image.
 ##@ Catalog Images
 
 .PHONY: catalogs
-catalogs: ## Generate FBC catalogs from templates.
+catalogs: ## Copy FBC catalogs from templates (raw FBC, not templates).
 	@for version in $(OCP_VERSIONS); do \
-		echo "Generating catalog for $$version..."; \
+		echo "Copying catalog for $$version..."; \
 		mkdir -p catalogs/$$version/$(OPERATOR_NAME); \
-		opm alpha render-template basic catalog-templates/$$version.yaml -o yaml > catalogs/$$version/$(OPERATOR_NAME)/catalog.yaml; \
+		cp catalog-templates/$$version.yaml catalogs/$$version/$(OPERATOR_NAME)/catalog.yaml; \
 	done
-	@echo "Catalogs generated for: $(OCP_VERSIONS)"
+	@echo "Catalogs copied for: $(OCP_VERSIONS)"
 
 .PHONY: catalog-validate
 catalog-validate: ## Validate all FBC catalogs.

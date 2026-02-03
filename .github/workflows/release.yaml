@@ -164,14 +164,15 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Generate catalog from template
+      - name: Copy catalog from template
         run: |
           OCP_VERSION="${{ matrix.ocp_version }}"
           mkdir -p catalogs/${OCP_VERSION}/cluster-assessment-operator
-          opm alpha render-template basic catalog-templates/${OCP_VERSION}.yaml \
-            -o yaml > catalogs/${OCP_VERSION}/cluster-assessment-operator/catalog.yaml
-          echo "Catalog generated for ${OCP_VERSION}:"
-          head -30 catalogs/${OCP_VERSION}/cluster-assessment-operator/catalog.yaml
+          # catalog-templates now contain raw FBC YAML (not basic templates)
+          # so we just copy them directly instead of rendering
+          cp catalog-templates/${OCP_VERSION}.yaml catalogs/${OCP_VERSION}/cluster-assessment-operator/catalog.yaml
+          echo "Catalog copied for ${OCP_VERSION}:"
+          head -40 catalogs/${OCP_VERSION}/cluster-assessment-operator/catalog.yaml
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
