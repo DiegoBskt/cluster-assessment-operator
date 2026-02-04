@@ -743,23 +743,24 @@ func (r *ClusterAssessmentReconciler) recordValidatorMetrics(assessmentName stri
 	}
 }
 
+// severityOrder defines the precedence of finding statuses.
+var severityOrder = map[string]int{
+	"INFO": 0,
+	"PASS": 1,
+	"WARN": 2,
+	"FAIL": 3,
+}
+
 // filterBySeverity filters findings to only include those at or above the minimum severity.
 // Severity order (from lowest to highest): INFO < PASS < WARN < FAIL
 func (r *ClusterAssessmentReconciler) filterBySeverity(findings []assessmentv1alpha1.Finding, minSeverity string) []assessmentv1alpha1.Finding {
-	severityOrder := map[string]int{
-		"INFO": 0,
-		"PASS": 1,
-		"WARN": 2,
-		"FAIL": 3,
-	}
-
 	minLevel, ok := severityOrder[minSeverity]
 	if !ok {
 		// Invalid minSeverity, return all findings
 		return findings
 	}
 
-	var filtered []assessmentv1alpha1.Finding
+	filtered := make([]assessmentv1alpha1.Finding, 0, len(findings))
 	for _, f := range findings {
 		level, ok := severityOrder[string(f.Status)]
 		if !ok {
