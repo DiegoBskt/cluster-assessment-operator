@@ -11,6 +11,8 @@ import {
     Text,
     TextVariants,
     Button,
+    List,
+    ListItem,
 } from '@patternfly/react-core';
 import {
     CheckCircleIcon,
@@ -114,32 +116,34 @@ export const FindingsTableRow = React.memo(({ finding, rowIndex, isExpanded, onT
                             {finding.references && finding.references.length > 0 && (
                                 <>
                                     <Text component={TextVariants.h4}>References</Text>
-                                    {finding.references.map((ref, i) => {
-                                        if (isValidUrl(ref)) {
+                                    <List>
+                                        {finding.references.map((ref, i) => {
+                                            if (isValidUrl(ref)) {
+                                                return (
+                                                    <ListItem key={i}>
+                                                        <Button
+                                                            variant="link"
+                                                            isInline
+                                                            component="a"
+                                                            href={ref}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            icon={<ExternalLinkAltIcon />}
+                                                            iconPosition="end"
+                                                            aria-label={`${ref} (opens in new tab)`}
+                                                        >
+                                                            {ref}
+                                                        </Button>
+                                                    </ListItem>
+                                                );
+                                            }
                                             return (
-                                                <Button
-                                                    key={i}
-                                                    variant="link"
-                                                    isInline
-                                                    component="a"
-                                                    href={ref}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    icon={<ExternalLinkAltIcon />}
-                                                    iconPosition="end"
-                                                    aria-label={`${ref} (opens in new tab)`}
-                                                    style={{ display: 'block', marginBottom: '4px' }}
-                                                >
+                                                <ListItem key={i}>
                                                     {ref}
-                                                </Button>
+                                                </ListItem>
                                             );
-                                        }
-                                        return (
-                                            <Text key={i} component={TextVariants.p}>
-                                                {ref}
-                                            </Text>
-                                        );
-                                    })}
+                                        })}
+                                    </List>
                                 </>
                             )}
                         </TextContent>
