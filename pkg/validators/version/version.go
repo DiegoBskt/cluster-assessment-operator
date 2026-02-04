@@ -122,6 +122,14 @@ func (v *VersionValidator) checkChannel(cv *configv1.ClusterVersion, profile pro
 			References: []string{
 				"https://docs.openshift.com/container-platform/latest/updating/updating-cluster-cli.html",
 			},
+			Remediation: &assessmentv1alpha1.RemediationGuidance{
+				Safety: assessmentv1alpha1.RemediationSafeApply,
+				Commands: []assessmentv1alpha1.RemediationCommand{
+					{Command: "oc adm upgrade channel stable-4.x", Description: "Set the upgrade channel (replace 4.x with your version)"},
+				},
+				DocumentationURL: "https://docs.openshift.com/container-platform/latest/updating/understanding-upgrade-channels-release.html",
+				EstimatedImpact:  "Setting a channel enables update recommendations; no immediate changes to the cluster",
+			},
 		}
 	}
 
@@ -164,6 +172,15 @@ func (v *VersionValidator) checkConditions(cv *configv1.ClusterVersion) []assess
 					Description:    fmt.Sprintf("ClusterVersion reports not available: %s", condition.Message),
 					Impact:         "The cluster may be experiencing issues that affect its availability.",
 					Recommendation: "Investigate the cluster operators and resolve any issues. Check 'oc get co' for details.",
+					Remediation: &assessmentv1alpha1.RemediationGuidance{
+						Safety: assessmentv1alpha1.RemediationRequiresReview,
+						Commands: []assessmentv1alpha1.RemediationCommand{
+							{Command: "oc get clusterversion", Description: "Check ClusterVersion status"},
+							{Command: "oc get co | grep -v 'True.*False.*False'", Description: "List unhealthy cluster operators"},
+							{Command: "oc describe co <operator-name>", Description: "Inspect a specific cluster operator"},
+						},
+						EstimatedImpact: "Depends on the root cause of the availability issue",
+					},
 				})
 			}
 
@@ -190,6 +207,15 @@ func (v *VersionValidator) checkConditions(cv *configv1.ClusterVersion) []assess
 					Description:    fmt.Sprintf("ClusterVersion reports degraded state: %s", condition.Message),
 					Impact:         "A degraded cluster version indicates issues with cluster operators that may affect stability.",
 					Recommendation: "Check degraded cluster operators with 'oc get co' and review their logs for issues.",
+					Remediation: &assessmentv1alpha1.RemediationGuidance{
+						Safety: assessmentv1alpha1.RemediationRequiresReview,
+						Commands: []assessmentv1alpha1.RemediationCommand{
+							{Command: "oc get co | grep -i degraded", Description: "Find degraded cluster operators"},
+							{Command: "oc describe co <operator-name>", Description: "Inspect a degraded operator's status"},
+							{Command: "oc logs -n openshift-<operator>-operator deployment/<operator>-operator --tail=100", Description: "View operator logs"},
+						},
+						EstimatedImpact: "Depends on which operator is degraded and why",
+					},
 				})
 			}
 
@@ -262,6 +288,16 @@ func (v *VersionValidator) checkUpdates(cv *configv1.ClusterVersion, profile pro
 		References: []string{
 			"https://docs.openshift.com/container-platform/latest/updating/updating-cluster-cli.html",
 		},
+		Remediation: &assessmentv1alpha1.RemediationGuidance{
+			Safety: assessmentv1alpha1.RemediationDestructive,
+			Commands: []assessmentv1alpha1.RemediationCommand{
+				{Command: "oc adm upgrade", Description: "View available updates"},
+				{Command: "oc adm upgrade --to=<version>", Description: "Start upgrade to a specific version", RequiresConfirmation: true},
+			},
+			DocumentationURL: "https://docs.openshift.com/container-platform/latest/updating/updating-cluster-cli.html",
+			EstimatedImpact:  "Cluster upgrade causes rolling restarts of control plane and worker nodes",
+			Prerequisites:    []string{"Ensure etcd backups are available", "Schedule a maintenance window", "Verify cluster health before upgrading"},
+		},
 	}
 }
 
@@ -302,6 +338,16 @@ func (v *VersionValidator) checkVersionAge(cv *configv1.ClusterVersion, profile 
 			Description:    fmt.Sprintf("It has been %d days since the last cluster update.", daysSinceUpdate),
 			Impact:         "Long periods without updates may indicate missing security patches or improvements.",
 			Recommendation: fmt.Sprintf("Consider updating the cluster. For %s environments, updates are recommended every %d days.", profile.Name, profile.Thresholds.MaxDaysWithoutUpdate),
+			Remediation: &assessmentv1alpha1.RemediationGuidance{
+				Safety: assessmentv1alpha1.RemediationDestructive,
+				Commands: []assessmentv1alpha1.RemediationCommand{
+					{Command: "oc adm upgrade", Description: "Check available updates"},
+					{Command: "oc adm upgrade --to-latest=true", Description: "Upgrade to the latest available version", RequiresConfirmation: true},
+				},
+				DocumentationURL: "https://docs.openshift.com/container-platform/latest/updating/updating-cluster-cli.html",
+				EstimatedImpact:  "Cluster upgrade causes rolling restarts of control plane and worker nodes",
+				Prerequisites:    []string{"Ensure etcd backups are available", "Schedule a maintenance window"},
+			},
 		}
 	}
 

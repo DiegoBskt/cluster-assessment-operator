@@ -201,6 +201,14 @@ func (v *CertificatesValidator) checkIngressCerts(ctx context.Context, c client.
 						Title:          "Expired Certificate",
 						Description:    fmt.Sprintf("Certificate secret %s has expired on %s", secret.Name, expiry),
 						Recommendation: "Renew the certificate immediately.",
+						Remediation: &assessmentv1alpha1.RemediationGuidance{
+							Safety: assessmentv1alpha1.RemediationRequiresReview,
+							Commands: []assessmentv1alpha1.RemediationCommand{
+								{Command: fmt.Sprintf("oc get secret %s -n openshift-ingress -o yaml", secret.Name), Description: "Inspect the expired certificate secret"},
+							},
+							EstimatedImpact: "Service disruption until the certificate is renewed",
+							Prerequisites:   []string{"Verify cert-manager or manual renewal process is in place"},
+						},
 					})
 				} else if expiryTime.Before(warningThreshold) {
 					findings = append(findings, assessmentv1alpha1.Finding{
@@ -211,6 +219,13 @@ func (v *CertificatesValidator) checkIngressCerts(ctx context.Context, c client.
 						Title:          "Certificate Expiring Soon",
 						Description:    fmt.Sprintf("Certificate secret %s expires on %s", secret.Name, expiry),
 						Recommendation: "Plan certificate renewal before expiration.",
+						Remediation: &assessmentv1alpha1.RemediationGuidance{
+							Safety: assessmentv1alpha1.RemediationSafeApply,
+							Commands: []assessmentv1alpha1.RemediationCommand{
+								{Command: fmt.Sprintf("oc get secret %s -n openshift-ingress -o jsonpath='{.metadata.annotations}'", secret.Name), Description: "Check certificate annotations and expiry details"},
+							},
+							EstimatedImpact: "Certificate renewal may cause brief connection resets",
+						},
 					})
 				}
 			}

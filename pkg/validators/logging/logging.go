@@ -310,6 +310,16 @@ func (v *LoggingValidator) checkCollectorHealth(ctx context.Context, c client.Cl
 					Description:    fmt.Sprintf("Log collector %s has %d/%d pods ready.", ds.Name, readyPods, desiredPods),
 					Impact:         "Some nodes may not be collecting logs.",
 					Recommendation: "Check collector pod logs and events for errors.",
+					Remediation: &assessmentv1alpha1.RemediationGuidance{
+						Safety: assessmentv1alpha1.RemediationRequiresReview,
+						Commands: []assessmentv1alpha1.RemediationCommand{
+							{Command: "oc get daemonset -n openshift-logging -l component=collector", Description: "Check collector DaemonSet status"},
+							{Command: "oc get pods -n openshift-logging -l component=collector -o wide | grep -v Running", Description: "List unhealthy collector pods"},
+							{Command: "oc logs -n openshift-logging <collector-pod> --tail=50", Description: "View collector pod logs"},
+							{Command: "oc describe pod -n openshift-logging <collector-pod>", Description: "Inspect collector pod events"},
+						},
+						EstimatedImpact: "Depends on root cause; may require node-level investigation",
+					},
 				})
 			} else {
 				findings = append(findings, assessmentv1alpha1.Finding{

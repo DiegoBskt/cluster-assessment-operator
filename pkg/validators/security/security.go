@@ -172,6 +172,17 @@ func (v *SecurityValidator) checkClusterAdminBindings(ctx context.Context, c cli
 			References: []string{
 				"https://docs.openshift.com/container-platform/latest/authentication/using-rbac.html",
 			},
+			Remediation: &assessmentv1alpha1.RemediationGuidance{
+				Safety: assessmentv1alpha1.RemediationRequiresReview,
+				Commands: []assessmentv1alpha1.RemediationCommand{
+					{Command: "oc get clusterrolebindings -o json | jq '.items[] | select(.roleRef.name==\"cluster-admin\") | .metadata.name'", Description: "List all cluster-admin bindings"},
+					{Command: "oc describe clusterrolebinding <binding-name>", Description: "Inspect a specific binding"},
+					{Command: "oc delete clusterrolebinding <binding-name>", Description: "Remove an unnecessary cluster-admin binding", RequiresConfirmation: true},
+				},
+				DocumentationURL: "https://docs.openshift.com/container-platform/latest/authentication/using-rbac.html",
+				EstimatedImpact:  "Removes admin access for affected users or service accounts",
+				Prerequisites:    []string{"Verify the binding is not required by a critical workload before removing"},
+			},
 		})
 	} else if len(nonSystemClusterAdminBindings) > 0 {
 		findings = append(findings, assessmentv1alpha1.Finding{
@@ -266,6 +277,15 @@ func (v *SecurityValidator) checkPrivilegedPods(ctx context.Context, c client.Cl
 			Description:    fmt.Sprintf("Found %d pod(s) with privileged containers in user namespaces: %s...", len(privilegedPods), strings.Join(sample, ", ")),
 			Impact:         "Privileged containers have elevated access to the host and bypass many security controls.",
 			Recommendation: "Review if privileged access is necessary. Consider using specific capabilities instead of full privileged mode.",
+			Remediation: &assessmentv1alpha1.RemediationGuidance{
+				Safety: assessmentv1alpha1.RemediationRequiresReview,
+				Commands: []assessmentv1alpha1.RemediationCommand{
+					{Command: "oc get pods -A -o json | jq '.items[] | select(.spec.containers[].securityContext.privileged==true) | .metadata.namespace + \"/\" + .metadata.name'", Description: "List all privileged pods"},
+					{Command: "oc get pod <pod-name> -n <namespace> -o yaml | grep -A5 securityContext", Description: "Inspect security context of a specific pod"},
+				},
+				DocumentationURL: "https://docs.openshift.com/container-platform/latest/authentication/managing-security-context-constraints.html",
+				EstimatedImpact:  "Restricting privileges may affect workloads that depend on host-level access",
+			},
 		})
 	} else {
 		findings = append(findings, assessmentv1alpha1.Finding{
@@ -293,6 +313,13 @@ func (v *SecurityValidator) checkPrivilegedPods(ctx context.Context, c client.Cl
 			Description:    fmt.Sprintf("Found %d pod(s) using host network in user namespaces: %s...", len(hostNetworkPods), strings.Join(sample, ", ")),
 			Impact:         "Pods with host network access can see all network traffic on the node.",
 			Recommendation: "Review if host network access is necessary. Use CNI networking when possible.",
+			Remediation: &assessmentv1alpha1.RemediationGuidance{
+				Safety: assessmentv1alpha1.RemediationRequiresReview,
+				Commands: []assessmentv1alpha1.RemediationCommand{
+					{Command: "oc get pods -A -o json | jq '.items[] | select(.spec.hostNetwork==true) | .metadata.namespace + \"/\" + .metadata.name'", Description: "List all pods using host network"},
+				},
+				EstimatedImpact: "Removing host network access may break workloads that bind to host ports",
+			},
 		})
 	}
 
@@ -311,6 +338,13 @@ func (v *SecurityValidator) checkPrivilegedPods(ctx context.Context, c client.Cl
 			Description:    fmt.Sprintf("Found %d pod(s) using host PID namespace in user namespaces: %s...", len(hostPIDPods), strings.Join(sample, ", ")),
 			Impact:         "Pods with host PID access can see and potentially interact with all processes on the node.",
 			Recommendation: "Review if host PID namespace access is necessary.",
+			Remediation: &assessmentv1alpha1.RemediationGuidance{
+				Safety: assessmentv1alpha1.RemediationRequiresReview,
+				Commands: []assessmentv1alpha1.RemediationCommand{
+					{Command: "oc get pods -A -o json | jq '.items[] | select(.spec.hostPID==true) | .metadata.namespace + \"/\" + .metadata.name'", Description: "List all pods using host PID"},
+				},
+				EstimatedImpact: "Removing host PID access may break monitoring or debugging workloads",
+			},
 		})
 	}
 
@@ -426,6 +460,14 @@ func (v *SecurityValidator) checkRiskyRBACPatterns(ctx context.Context, c client
 			Description:    fmt.Sprintf("Found %d custom ClusterRole(s) with wildcard (*) permissions: %s", len(wildcardRoles), strings.Join(wildcardRoles, ", ")),
 			Impact:         "Wildcard permissions grant excessive access and violate the principle of least privilege.",
 			Recommendation: "Refine ClusterRoles to specify only the necessary resources and verbs.",
+			Remediation: &assessmentv1alpha1.RemediationGuidance{
+				Safety: assessmentv1alpha1.RemediationRequiresReview,
+				Commands: []assessmentv1alpha1.RemediationCommand{
+					{Command: "oc get clusterrole <role-name> -o yaml", Description: "Inspect a ClusterRole with wildcard permissions"},
+					{Command: "oc auth can-i --list --as=system:serviceaccount:<ns>:<sa>", Description: "Check effective permissions for a service account"},
+				},
+				EstimatedImpact: "Restricting permissions may break workloads that depend on broad access",
+			},
 		})
 	}
 

@@ -116,6 +116,15 @@ func (v *StorageValidator) checkStorageClasses(ctx context.Context, c client.Cli
 			Description:    "No StorageClasses are configured in the cluster.",
 			Impact:         "Without StorageClasses, PersistentVolumeClaims cannot be dynamically provisioned.",
 			Recommendation: "Configure appropriate StorageClasses for your storage backend.",
+			Remediation: &assessmentv1alpha1.RemediationGuidance{
+				Safety: assessmentv1alpha1.RemediationRequiresReview,
+				Commands: []assessmentv1alpha1.RemediationCommand{
+					{Command: "oc get sc", Description: "List existing StorageClasses"},
+					{Command: "oc get csidrivers", Description: "List available CSI drivers"},
+				},
+				DocumentationURL: "https://docs.openshift.com/container-platform/latest/storage/understanding-persistent-storage.html",
+				EstimatedImpact:  "Adding a StorageClass enables dynamic PV provisioning for workloads",
+			},
 		}}
 	}
 
@@ -140,6 +149,14 @@ func (v *StorageValidator) checkStorageClasses(ctx context.Context, c client.Cli
 			Description:    "No default StorageClass is configured.",
 			Impact:         "PVCs without explicit StorageClass will fail to provision.",
 			Recommendation: "Set a default StorageClass with 'kubectl patch storageclass <name> -p '{\"metadata\": {\"annotations\":{\"storageclass.kubernetes.io/is-default-class\":\"true\"}}}'",
+			Remediation: &assessmentv1alpha1.RemediationGuidance{
+				Safety: assessmentv1alpha1.RemediationSafeApply,
+				Commands: []assessmentv1alpha1.RemediationCommand{
+					{Command: "oc get sc", Description: "List StorageClasses to choose a default"},
+					{Command: "oc patch storageclass <name> -p '{\"metadata\": {\"annotations\":{\"storageclass.kubernetes.io/is-default-class\":\"true\"}}}'", Description: "Set a StorageClass as default"},
+				},
+				EstimatedImpact: "New PVCs without explicit StorageClass will use the default",
+			},
 		})
 	} else if defaultSCCount > 1 {
 		findings = append(findings, assessmentv1alpha1.Finding{

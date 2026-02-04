@@ -127,6 +127,14 @@ func (v *MonitoringValidator) checkClusterMonitoringConfig(ctx context.Context, 
 						Description:    "Monitoring configuration does not appear to include persistent storage.",
 						Impact:         "Metrics data will be lost when Prometheus pods restart.",
 						Recommendation: "Configure persistent storage for Prometheus to retain metrics across restarts.",
+						Remediation: &assessmentv1alpha1.RemediationGuidance{
+							Safety: assessmentv1alpha1.RemediationRequiresReview,
+							Commands: []assessmentv1alpha1.RemediationCommand{
+								{Command: "oc get configmap cluster-monitoring-config -n openshift-monitoring -o yaml", Description: "View current monitoring configuration"},
+							},
+							DocumentationURL: "https://docs.openshift.com/container-platform/latest/monitoring/configuring-the-monitoring-stack.html",
+							EstimatedImpact:  "Adding persistent storage triggers Prometheus pod restarts",
+						},
 					})
 				}
 			}
@@ -211,6 +219,15 @@ func (v *MonitoringValidator) checkMonitoringOperator(ctx context.Context, c cli
 			Description:    "The monitoring ClusterOperator is in a degraded state.",
 			Impact:         "Degraded monitoring may result in missing metrics or alerts.",
 			Recommendation: "Investigate the monitoring operator logs and events.",
+			Remediation: &assessmentv1alpha1.RemediationGuidance{
+				Safety: assessmentv1alpha1.RemediationRequiresReview,
+				Commands: []assessmentv1alpha1.RemediationCommand{
+					{Command: "oc get co monitoring -o yaml", Description: "View monitoring operator status"},
+					{Command: "oc get pods -n openshift-monitoring --field-selector=status.phase!=Running", Description: "Find unhealthy monitoring pods"},
+					{Command: "oc logs -n openshift-monitoring deployment/cluster-monitoring-operator --tail=50", Description: "View operator logs"},
+				},
+				EstimatedImpact: "Depends on the root cause of the degradation",
+			},
 		})
 	} else if !isAvailable {
 		findings = append(findings, assessmentv1alpha1.Finding{
@@ -222,6 +239,14 @@ func (v *MonitoringValidator) checkMonitoringOperator(ctx context.Context, c cli
 			Description:    "The monitoring ClusterOperator is not available.",
 			Impact:         "Monitoring capabilities may be impaired.",
 			Recommendation: "Check the openshift-monitoring namespace for issues.",
+			Remediation: &assessmentv1alpha1.RemediationGuidance{
+				Safety: assessmentv1alpha1.RemediationRequiresReview,
+				Commands: []assessmentv1alpha1.RemediationCommand{
+					{Command: "oc get pods -n openshift-monitoring", Description: "List monitoring namespace pods"},
+					{Command: "oc get events -n openshift-monitoring --sort-by='.lastTimestamp' | tail -20", Description: "View recent monitoring events"},
+				},
+				EstimatedImpact: "Depends on the root cause of the unavailability",
+			},
 		})
 	} else if isProgressing {
 		findings = append(findings, assessmentv1alpha1.Finding{

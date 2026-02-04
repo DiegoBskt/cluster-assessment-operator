@@ -1,0 +1,33 @@
+apiVersion: assessment.openshift.io/v1alpha1
+kind: AssessmentProfile
+metadata:
+  name: financial-services
+spec:
+  description: "Strict profile for financial services clusters with enhanced security and compliance requirements."
+  basedOn: production
+  thresholds:
+    maxClusterAdminBindings: 2
+    maxDaysWithoutUpdate: 30
+    requireNetworkPolicy: true
+    requireResourceQuotas: true
+    requireLimitRanges: true
+    allowPrivilegedContainers: false
+  disabledChecks:
+    - costoptimization-idle-nodes
+---
+apiVersion: assessment.openshift.io/v1alpha1
+kind: AssessmentProfile
+metadata:
+  name: staging
+spec:
+  description: "Relaxed profile for staging environments, based on development with some production checks enabled."
+  basedOn: development
+  thresholds:
+    minWorkerNodes: 2
+    requireDefaultStorageClass: true
+  enabledValidators:
+    - security
+    - nodes
+    - networking
+    - storage
+    - version

@@ -121,6 +121,14 @@ func (v *NetworkingValidator) checkNetworkConfig(ctx context.Context, c client.C
 			Description:    fmt.Sprintf("Cluster is using %s, which is not one of the standard OpenShift network types.", networkType),
 			Impact:         "Non-standard network types may have different support levels and capabilities.",
 			Recommendation: "Consider using OpenShiftSDN or OVNKubernetes for full OpenShift support.",
+			Remediation: &assessmentv1alpha1.RemediationGuidance{
+				Safety: assessmentv1alpha1.RemediationDestructive,
+				Commands: []assessmentv1alpha1.RemediationCommand{
+					{Command: "oc get network.config cluster -o yaml", Description: "View current network configuration"},
+				},
+				DocumentationURL: "https://docs.openshift.com/container-platform/latest/networking/cluster-network-operator.html",
+				EstimatedImpact:  "Network type migration requires cluster reinstallation",
+			},
 		})
 	} else {
 		findings = append(findings, assessmentv1alpha1.Finding{
@@ -196,6 +204,15 @@ func (v *NetworkingValidator) checkNetworkPolicies(ctx context.Context, c client
 			Recommendation: "Consider implementing NetworkPolicies to restrict pod-to-pod communication based on your security requirements.",
 			References: []string{
 				"https://docs.openshift.com/container-platform/latest/networking/network_policy/about-network-policy.html",
+			},
+			Remediation: &assessmentv1alpha1.RemediationGuidance{
+				Safety: assessmentv1alpha1.RemediationSafeApply,
+				Commands: []assessmentv1alpha1.RemediationCommand{
+					{Command: "oc get networkpolicy -A", Description: "List existing NetworkPolicies"},
+					{Command: "cat <<'EOF' | oc apply -f -\napiVersion: networking.k8s.io/v1\nkind: NetworkPolicy\nmetadata:\n  name: deny-all-ingress\n  namespace: <namespace>\nspec:\n  podSelector: {}\n  policyTypes:\n  - Ingress\nEOF", Description: "Apply a default deny-all ingress policy to a namespace", RequiresConfirmation: true},
+				},
+				DocumentationURL: "https://docs.openshift.com/container-platform/latest/networking/network_policy/about-network-policy.html",
+				EstimatedImpact:  "A deny-all policy blocks all ingress traffic; ensure allow rules are added for required communication",
 			},
 		})
 	} else {

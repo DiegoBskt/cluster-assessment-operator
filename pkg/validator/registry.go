@@ -107,6 +107,7 @@ func (r *Runner) RunAll(ctx context.Context, profile profiles.Profile) ([]assess
 }
 
 // Run executes the specified validators (or all if validatorNames is empty).
+// Validators are further filtered by the profile's EnabledValidators and DisabledChecks.
 func (r *Runner) Run(ctx context.Context, profile profiles.Profile, validatorNames []string) ([]assessmentv1alpha1.Finding, error) {
 	logger := log.FromContext(ctx)
 
@@ -122,6 +123,15 @@ func (r *Runner) Run(ctx context.Context, profile profiles.Profile, validatorNam
 			}
 			validators = append(validators, v)
 		}
+	}
+
+	// Apply profile-level validator filtering
+	validators = filterValidators(validators, profile)
+
+	// Build disabled checks set for finding-level filtering
+	disabledChecks := make(map[string]bool, len(profile.DisabledChecks))
+	for _, id := range profile.DisabledChecks {
+		disabledChecks[id] = true
 	}
 
 	var allFindings []assessmentv1alpha1.Finding
@@ -146,11 +156,43 @@ func (r *Runner) Run(ctx context.Context, profile profiles.Profile, validatorNam
 			continue
 		}
 
+		// Filter out disabled checks
+		if len(disabledChecks) > 0 {
+			filtered := findings[:0]
+			for _, f := range findings {
+				if !disabledChecks[f.ID] {
+					filtered = append(filtered, f)
+				}
+			}
+			findings = filtered
+		}
+
 		allFindings = append(allFindings, findings...)
 		logger.Info("Validator completed", "validator", v.Name(), "findings", len(findings))
 	}
 
 	return allFindings, nil
+}
+
+// filterValidators applies profile-level EnabledValidators filtering.
+// If EnabledValidators is set, only those validators run.
+func filterValidators(validators []Validator, profile profiles.Profile) []Validator {
+	if len(profile.EnabledValidators) == 0 {
+		return validators
+	}
+
+	enabledSet := make(map[string]bool, len(profile.EnabledValidators))
+	for _, name := range profile.EnabledValidators {
+		enabledSet[name] = true
+	}
+
+	filtered := validators[:0]
+	for _, v := range validators {
+		if enabledSet[v.Name()] {
+			filtered = append(filtered, v)
+		}
+	}
+	return filtered
 }
 
 // defaultRegistry is the global validator registry.

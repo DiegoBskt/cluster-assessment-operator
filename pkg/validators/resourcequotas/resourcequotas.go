@@ -181,6 +181,15 @@ func (v *ResourceQuotasValidator) checkResourceQuotas(ctx context.Context, c cli
 			References: []string{
 				"https://kubernetes.io/docs/concepts/policy/resource-quotas/",
 			},
+			Remediation: &assessmentv1alpha1.RemediationGuidance{
+				Safety: assessmentv1alpha1.RemediationSafeApply,
+				Commands: []assessmentv1alpha1.RemediationCommand{
+					{Command: "oc get resourcequota -A", Description: "List existing ResourceQuotas"},
+					{Command: "cat <<'EOF' | oc apply -f -\napiVersion: v1\nkind: ResourceQuota\nmetadata:\n  name: default-quota\n  namespace: <namespace>\nspec:\n  hard:\n    requests.cpu: \"4\"\n    requests.memory: 8Gi\n    limits.cpu: \"8\"\n    limits.memory: 16Gi\n    pods: \"20\"\nEOF", Description: "Apply a default ResourceQuota to a namespace"},
+				},
+				DocumentationURL: "https://kubernetes.io/docs/concepts/policy/resource-quotas/",
+				EstimatedImpact:  "New resource requests exceeding the quota will be rejected",
+			},
 		})
 	} else if totalUserNs > 0 {
 		findings = append(findings, assessmentv1alpha1.Finding{
@@ -279,6 +288,14 @@ func (v *ResourceQuotasValidator) checkLimitRanges(ctx context.Context, c client
 			Recommendation: "Define LimitRanges to set default CPU/memory limits for containers.",
 			References: []string{
 				"https://kubernetes.io/docs/concepts/policy/limit-range/",
+			},
+			Remediation: &assessmentv1alpha1.RemediationGuidance{
+				Safety: assessmentv1alpha1.RemediationSafeApply,
+				Commands: []assessmentv1alpha1.RemediationCommand{
+					{Command: "cat <<'EOF' | oc apply -f -\napiVersion: v1\nkind: LimitRange\nmetadata:\n  name: default-limits\n  namespace: <namespace>\nspec:\n  limits:\n  - type: Container\n    default:\n      cpu: 500m\n      memory: 512Mi\n    defaultRequest:\n      cpu: 100m\n      memory: 128Mi\nEOF", Description: "Apply a default LimitRange to a namespace"},
+				},
+				DocumentationURL: "https://kubernetes.io/docs/concepts/policy/limit-range/",
+				EstimatedImpact:  "Containers without explicit limits will receive the default limits",
 			},
 		})
 	} else if totalUserNs > 0 {

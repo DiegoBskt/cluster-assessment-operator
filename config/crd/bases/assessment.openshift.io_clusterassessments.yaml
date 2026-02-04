@@ -2,234 +2,477 @@
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
-  name: clusterassessments.assessment.openshift.io
   annotations:
-    controller-gen.kubebuilder.io/version: v0.14.0
+    controller-gen.kubebuilder.io/version: v0.20.0
+  name: clusterassessments.assessment.openshift.io
 spec:
   group: assessment.openshift.io
   names:
     kind: ClusterAssessment
     listKind: ClusterAssessmentList
     plural: clusterassessments
-    singular: clusterassessment
     shortNames:
-      - ca
+    - ca
+    singular: clusterassessment
   scope: Cluster
   versions:
-    - name: v1alpha1
-      served: true
-      storage: true
-      subresources:
-        status: {}
-      additionalPrinterColumns:
-        - name: Profile
-          type: string
-          jsonPath: .spec.profile
-        - name: Phase
-          type: string
-          jsonPath: .status.phase
-        - name: Pass
-          type: integer
-          jsonPath: .status.summary.passCount
-        - name: Warn
-          type: integer
-          jsonPath: .status.summary.warnCount
-        - name: Fail
-          type: integer
-          jsonPath: .status.summary.failCount
-        - name: Last Run
-          type: date
-          jsonPath: .status.lastRunTime
-        - name: Age
-          type: date
-          jsonPath: .metadata.creationTimestamp
-      schema:
-        openAPIV3Schema:
-          type: object
-          description: ClusterAssessment triggers read-only assessments of OpenShift cluster configuration.
-          properties:
-            apiVersion:
-              type: string
-            kind:
-              type: string
-            metadata:
-              type: object
-            spec:
-              type: object
-              description: ClusterAssessmentSpec defines the desired state of ClusterAssessment.
-              properties:
-                schedule:
-                  type: string
-                  description: Schedule in cron format for periodic assessments. Leave empty for one-time assessment.
-                profile:
-                  type: string
-                  description: Baseline profile to use for assessment.
-                  enum:
-                    - production
-                    - development
-                  default: production
-                validators:
-                  type: array
-                  description: List of specific validators to run. Empty means all validators.
-                  items:
-                    type: string
-                suspend:
-                  type: boolean
-                  description: Suspend prevents scheduled assessments from running.
-                reportStorage:
-                  type: object
-                  description: ReportStorage configures where assessment reports are stored.
-                  properties:
-                    configMap:
-                      type: object
-                      properties:
-                        enabled:
-                          type: boolean
-                        name:
-                          type: string
-                        namespace:
-                          type: string
-                          description: Namespace where the ConfigMap will be created. Defaults to the operator namespace if not specified.
-                        format:
-                          type: string
-                          description: Report format(s) to generate. Options are json, html, pdf or combinations like "json,html,pdf"
-                          default: "json"
-                    git:
-                      type: object
-                      properties:
-                        enabled:
-                          type: boolean
-                        url:
-                          type: string
-                        branch:
-                          type: string
-                        path:
-                          type: string
-                        secretRef:
-                          type: string
-                        secretNamespace:
-                          type: string
-                          description: Namespace of the secret referenced by secretRef. Required when secretRef is set.
-                minSeverity:
-                  type: string
-                  description: Minimum severity level to include in report (INFO, PASS, WARN, FAIL).
-                  enum:
-                    - INFO
-                    - PASS
-                    - WARN
-                    - FAIL
-            status:
-              type: object
-              description: ClusterAssessmentStatus defines the observed state of ClusterAssessment.
-              properties:
-                phase:
-                  type: string
-                  enum:
-                    - Pending
-                    - Running
-                    - Completed
-                    - Failed
-                lastRunTime:
-                  type: string
-                  format: date-time
-                nextRunTime:
-                  type: string
-                  format: date-time
-                clusterInfo:
-                  type: object
-                  properties:
-                    clusterID:
-                      type: string
-                    clusterVersion:
-                      type: string
-                    platform:
-                      type: string
-                    channel:
-                      type: string
-                    nodeCount:
-                      type: integer
-                    controlPlaneNodes:
-                      type: integer
-                    workerNodes:
-                      type: integer
-                summary:
-                  type: object
-                  properties:
-                    totalChecks:
-                      type: integer
-                    passCount:
-                      type: integer
-                    warnCount:
-                      type: integer
-                    failCount:
-                      type: integer
-                    infoCount:
-                      type: integer
-                    score:
-                      type: integer
-                    profileUsed:
-                      type: string
-                findings:
-                  type: array
-                  items:
-                    type: object
+  - additionalPrinterColumns:
+    - jsonPath: .spec.profile
+      name: Profile
+      type: string
+    - jsonPath: .status.phase
+      name: Phase
+      type: string
+    - jsonPath: .status.summary.passCount
+      name: Pass
+      type: integer
+    - jsonPath: .status.summary.warnCount
+      name: Warn
+      type: integer
+    - jsonPath: .status.summary.failCount
+      name: Fail
+      type: integer
+    - jsonPath: .status.lastRunTime
+      name: Last Run
+      type: date
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: |-
+          ClusterAssessment is the Schema for the clusterassessments API.
+          It triggers read-only assessments of OpenShift cluster configuration and
+          generates human-readable reports with findings and recommendations.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: ClusterAssessmentSpec defines the desired state of ClusterAssessment
+            properties:
+              historyLimit:
+                default: 90
+                description: |-
+                  HistoryLimit is the maximum number of AssessmentSnapshot CRs to retain per assessment.
+                  Oldest snapshots are pruned when this limit is exceeded.
+                  Set to 0 to disable historical tracking. Defaults to 90.
+                type: integer
+              minSeverity:
+                description: |-
+                  MinSeverity filters findings to only include this severity level and above.
+                  Valid values are: "INFO", "PASS", "WARN", "FAIL"
+                  Leave empty to include all findings.
+                enum:
+                - INFO
+                - PASS
+                - WARN
+                - FAIL
+                type: string
+              profile:
+                default: production
+                description: |-
+                  Profile specifies the baseline profile to use for assessment.
+                  Can be a built-in profile name ("production", "development") or
+                  the name of a custom AssessmentProfile CR.
+                type: string
+              reportStorage:
+                description: ReportStorage configures where assessment reports are
+                  stored.
+                properties:
+                  configMap:
+                    description: ConfigMap enables storing the report in a ConfigMap.
                     properties:
-                      id:
+                      enabled:
+                        description: Enabled determines if ConfigMap storage is active.
+                        type: boolean
+                      format:
+                        description: |-
+                          Format specifies the report format(s) to generate.
+                          Valid values are: "json", "html", "pdf", or combinations like "json,html,pdf"
+                          Defaults to "json"
                         type: string
-                      validator:
-                        type: string
-                      category:
-                        type: string
-                      resource:
+                      name:
+                        description: Name is the ConfigMap name. Defaults to <assessment-name>-report.
                         type: string
                       namespace:
+                        description: |-
+                          Namespace is the namespace where the ConfigMap will be created.
+                          Defaults to the operator's namespace if not specified.
                         type: string
-                      status:
-                        type: string
-                        enum:
-                          - PASS
-                          - WARN
-                          - FAIL
-                          - INFO
-                      title:
-                        type: string
-                      description:
-                        type: string
-                      impact:
-                        type: string
-                      recommendation:
-                        type: string
-                      references:
-                        type: array
-                        items:
-                          type: string
-                    required:
-                      - id
-                      - validator
-                      - category
-                      - status
-                      - title
-                      - description
-                reportConfigMap:
-                  type: string
-                conditions:
-                  type: array
-                  items:
                     type: object
+                  git:
+                    description: Git enables exporting the report to a Git repository.
                     properties:
-                      type:
+                      branch:
+                        description: Branch is the target branch. Defaults to "main".
                         type: string
-                      status:
+                      enabled:
+                        description: Enabled determines if Git export is active.
+                        type: boolean
+                      path:
+                        description: Path is the directory path within the repository.
                         type: string
-                      lastTransitionTime:
+                      secretNamespace:
+                        description: |-
+                          SecretNamespace is the namespace of the secret referenced by SecretRef.
+                          Required when SecretRef is set, since ClusterAssessment is cluster-scoped.
                         type: string
-                        format: date-time
-                      reason:
+                      secretRef:
+                        description: |-
+                          SecretRef references a secret containing Git credentials.
+                          The secret should contain 'username' and 'password' or 'token' keys.
                         type: string
-                      message:
+                      url:
+                        description: URL is the Git repository URL.
                         type: string
-                    required:
-                      - type
-                      - status
-                message:
+                    type: object
+                type: object
+              schedule:
+                description: |-
+                  Schedule in cron format for periodic assessments.
+                  Leave empty for one-time assessment triggered on CR creation.
+                type: string
+              suspend:
+                description: Suspend prevents scheduled assessments from running when
+                  true.
+                type: boolean
+              validators:
+                description: |-
+                  Validators is the list of specific validators to run.
+                  Leave empty to run all validators.
+                items:
                   type: string
+                type: array
+            type: object
+          status:
+            description: ClusterAssessmentStatus defines the observed state of ClusterAssessment
+            properties:
+              clusterInfo:
+                description: ClusterInfo contains metadata about the assessed cluster.
+                properties:
+                  channel:
+                    description: Channel is the update channel configured for the
+                      cluster.
+                    type: string
+                  clusterID:
+                    description: ClusterID is the unique identifier of the cluster.
+                    type: string
+                  clusterVersion:
+                    description: ClusterVersion is the current OpenShift version.
+                    type: string
+                  controlPlaneNodes:
+                    description: ControlPlaneNodes is the number of control plane
+                      nodes.
+                    type: integer
+                  nodeCount:
+                    description: NodeCount is the total number of nodes in the cluster.
+                    type: integer
+                  platform:
+                    description: Platform is the infrastructure platform (AWS, Azure,
+                      vSphere, etc.).
+                    type: string
+                  workerNodes:
+                    description: WorkerNodes is the number of worker nodes.
+                    type: integer
+                type: object
+              conditions:
+                description: Conditions represent the latest available observations
+                  of the assessment's state.
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        lastTransitionTime is the last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        message is a human readable message indicating details about the transition.
+                        This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: |-
+                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                        Producers of specific condition types may define expected values and meanings for this field,
+                        and whether the values are considered a guaranteed API.
+                        The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+              delta:
+                description: Delta summarizes changes from the previous assessment
+                  run.
+                properties:
+                  improvedFindings:
+                    description: ImprovedFindings are findings whose status improved
+                      (e.g., FAIL -> WARN or PASS).
+                    items:
+                      type: string
+                    type: array
+                  newFindings:
+                    description: NewFindings are finding IDs that appeared in this
+                      run but not the previous.
+                    items:
+                      type: string
+                    type: array
+                  regressionFindings:
+                    description: RegressionFindings are findings whose status worsened
+                      (e.g., WARN -> FAIL).
+                    items:
+                      type: string
+                    type: array
+                  resolvedFindings:
+                    description: ResolvedFindings are finding IDs from the previous
+                      run that are no longer present.
+                    items:
+                      type: string
+                    type: array
+                  scoreDelta:
+                    description: ScoreDelta is the score change from the previous
+                      run (positive = improved).
+                    type: integer
+                type: object
+              findings:
+                description: Findings is the list of all assessment findings.
+                items:
+                  description: Finding represents a single assessment finding
+                  properties:
+                    category:
+                      description: Category groups related findings (e.g., "Security",
+                        "Networking").
+                      type: string
+                    description:
+                      description: Description explains what was checked and what
+                        was found.
+                      type: string
+                    id:
+                      description: ID is a unique identifier for this finding type.
+                      type: string
+                    impact:
+                      description: |-
+                        Impact explains why this finding matters from reliability, security,
+                        or supportability perspectives.
+                      type: string
+                    namespace:
+                      description: Namespace is the namespace of the resource, if
+                        applicable.
+                      type: string
+                    recommendation:
+                      description: |-
+                        Recommendation describes how the configuration could be improved.
+                        This is advisory only; no automatic remediation is performed.
+                      type: string
+                    references:
+                      description: References provides links to relevant documentation.
+                      items:
+                        type: string
+                      type: array
+                    remediation:
+                      description: Remediation provides structured guidance for resolving
+                        this finding.
+                      properties:
+                        commands:
+                          description: Commands is an ordered list of commands to
+                            remediate the finding.
+                          items:
+                            description: RemediationCommand represents a single command
+                              step in a remediation procedure.
+                            properties:
+                              command:
+                                description: Command is the shell command to execute.
+                                type: string
+                              description:
+                                description: Description explains what this command
+                                  does.
+                                type: string
+                              requiresConfirmation:
+                                description: |-
+                                  RequiresConfirmation indicates this command is potentially dangerous
+                                  and the user should confirm before executing.
+                                type: boolean
+                            required:
+                            - command
+                            type: object
+                          type: array
+                        documentationURL:
+                          description: DocumentationURL links to relevant documentation.
+                          type: string
+                        estimatedImpact:
+                          description: EstimatedImpact describes what will change
+                            when the remediation is applied.
+                          type: string
+                        prerequisites:
+                          description: Prerequisites lists conditions that should
+                            be met before applying the remediation.
+                          items:
+                            type: string
+                          type: array
+                        safety:
+                          allOf:
+                          - enum:
+                            - safe-apply
+                            - requires-review
+                            - destructive
+                          - enum:
+                            - safe-apply
+                            - requires-review
+                            - destructive
+                          description: Safety indicates the risk level of applying
+                            this remediation.
+                          type: string
+                      required:
+                      - safety
+                      type: object
+                    resource:
+                      description: Resource is the name of the Kubernetes resource
+                        involved.
+                      type: string
+                    status:
+                      allOf:
+                      - enum:
+                        - PASS
+                        - WARN
+                        - FAIL
+                        - INFO
+                      - enum:
+                        - PASS
+                        - WARN
+                        - FAIL
+                        - INFO
+                      description: 'Status indicates the finding severity: PASS, WARN,
+                        FAIL, or INFO.'
+                      type: string
+                    title:
+                      description: Title is a short, human-readable title for the
+                        finding.
+                      type: string
+                    validator:
+                      description: Validator is the name of the validator that produced
+                        this finding.
+                      type: string
+                  required:
+                  - category
+                  - description
+                  - id
+                  - status
+                  - title
+                  - validator
+                  type: object
+                type: array
+              lastRunTime:
+                description: LastRunTime is the timestamp of the last assessment run.
+                format: date-time
+                type: string
+              message:
+                description: Message provides additional information about the current
+                  phase.
+                type: string
+              nextRunTime:
+                description: NextRunTime is the scheduled time for the next assessment
+                  (if scheduled).
+                format: date-time
+                type: string
+              phase:
+                description: Phase represents the current phase of the assessment.
+                enum:
+                - Pending
+                - Running
+                - Completed
+                - Failed
+                type: string
+              reportConfigMap:
+                description: ReportConfigMap is the name of the ConfigMap containing
+                  the full report.
+                type: string
+              snapshotCount:
+                description: SnapshotCount is the number of historical snapshots retained
+                  for this assessment.
+                type: integer
+              summary:
+                description: Summary provides an overview of assessment results.
+                properties:
+                  failCount:
+                    description: FailCount is the number of checks that failed.
+                    type: integer
+                  infoCount:
+                    description: InfoCount is the number of informational findings.
+                    type: integer
+                  passCount:
+                    description: PassCount is the number of checks that passed.
+                    type: integer
+                  profileUsed:
+                    description: ProfileUsed is the baseline profile that was used.
+                    type: string
+                  score:
+                    description: Score is an optional overall health/maturity score
+                      (0-100).
+                    type: integer
+                  totalChecks:
+                    description: TotalChecks is the total number of checks performed.
+                    type: integer
+                  warnCount:
+                    description: WarnCount is the number of checks with warnings.
+                    type: integer
+                required:
+                - failCount
+                - infoCount
+                - passCount
+                - totalChecks
+                - warnCount
+                type: object
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

@@ -120,6 +120,15 @@ func (v *OperatorsValidator) Validate(ctx context.Context, c client.Client, prof
 			Description:    fmt.Sprintf("Found %d operators in Failed state: %v", len(failedCSVs), truncateList(failedCSVs, 5)),
 			Impact:         "Failed operators may not provide expected functionality and could affect cluster operations.",
 			Recommendation: "Check the operator logs and events to diagnose the failure. Consider removing and reinstalling the operator.",
+			Remediation: &assessmentv1alpha1.RemediationGuidance{
+				Safety: assessmentv1alpha1.RemediationRequiresReview,
+				Commands: []assessmentv1alpha1.RemediationCommand{
+					{Command: "oc get csv -A --field-selector=status.phase=Failed", Description: "List all failed CSVs"},
+					{Command: "oc describe csv <csv-name> -n <namespace>", Description: "Inspect a failed CSV for details"},
+					{Command: "oc get installplan -A", Description: "Check install plans for approval or errors"},
+				},
+				EstimatedImpact: "Fixing or reinstalling operators may require brief service interruption",
+			},
 		})
 	}
 
@@ -219,6 +228,14 @@ func (v *OperatorsValidator) checkClusterOperators(ctx context.Context, c client
 			Description:    fmt.Sprintf("Found %d degraded cluster operators: %v", len(degradedOperators), degradedOperators),
 			Impact:         "Degraded operators may not be fully functional and could affect cluster stability.",
 			Recommendation: "Check the operator events and logs in the openshift-* namespaces.",
+			Remediation: &assessmentv1alpha1.RemediationGuidance{
+				Safety: assessmentv1alpha1.RemediationRequiresReview,
+				Commands: []assessmentv1alpha1.RemediationCommand{
+					{Command: "oc get co | grep -i degraded", Description: "List degraded cluster operators"},
+					{Command: "oc describe co <operator-name>", Description: "Inspect a degraded operator"},
+				},
+				EstimatedImpact: "Depends on the operator and root cause",
+			},
 		})
 	}
 
@@ -232,6 +249,14 @@ func (v *OperatorsValidator) checkClusterOperators(ctx context.Context, c client
 			Description:    fmt.Sprintf("Found %d unavailable cluster operators: %v", len(unavailableOperators), unavailableOperators),
 			Impact:         "Unavailable operators cannot perform their functions.",
 			Recommendation: "Investigate the operator status and logs immediately.",
+			Remediation: &assessmentv1alpha1.RemediationGuidance{
+				Safety: assessmentv1alpha1.RemediationRequiresReview,
+				Commands: []assessmentv1alpha1.RemediationCommand{
+					{Command: "oc get co | grep -v 'True.*False.*False'", Description: "List unhealthy cluster operators"},
+					{Command: "oc describe co <operator-name>", Description: "Inspect an unavailable operator"},
+				},
+				EstimatedImpact: "Depends on the operator and root cause",
+			},
 		})
 	}
 

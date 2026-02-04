@@ -22,6 +22,7 @@ import {
     ExternalLinkAltIcon,
 } from '@patternfly/react-icons';
 import { Finding } from '../types';
+import { RemediationPanel } from './RemediationPanel';
 
 interface FindingsTableRowProps {
     finding: Finding;
@@ -147,6 +148,9 @@ export const FindingsTableRow = React.memo(({ finding, rowIndex, isExpanded, onT
                                 </>
                             )}
                         </TextContent>
+                        {finding.remediation && (
+                            <RemediationPanel remediation={finding.remediation} />
+                        )}
                     </ExpandableRowContent>
                 </Td>
             </Tr>

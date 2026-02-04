@@ -115,6 +115,15 @@ func (v *APIServerValidator) checkAPIServer(ctx context.Context, c client.Client
 			Description:    "The kube-apiserver ClusterOperator is in a degraded state.",
 			Impact:         "A degraded API server may affect cluster operations and API availability.",
 			Recommendation: "Check the kube-apiserver operator logs and events for issues.",
+			Remediation: &assessmentv1alpha1.RemediationGuidance{
+				Safety: assessmentv1alpha1.RemediationRequiresReview,
+				Commands: []assessmentv1alpha1.RemediationCommand{
+					{Command: "oc get co kube-apiserver -o yaml", Description: "View API server operator status"},
+					{Command: "oc get pods -n openshift-kube-apiserver", Description: "Check API server pods"},
+					{Command: "oc logs -n openshift-kube-apiserver-operator deployment/kube-apiserver-operator --tail=50", Description: "View operator logs"},
+				},
+				EstimatedImpact: "Depends on the root cause of degradation",
+			},
 		})
 	} else if !isAvailable {
 		findings = append(findings, assessmentv1alpha1.Finding{
@@ -190,6 +199,15 @@ func (v *APIServerValidator) checkEtcd(ctx context.Context, c client.Client) []a
 			Description:    "The etcd ClusterOperator is in a degraded state.",
 			Impact:         "A degraded etcd affects cluster data storage and may cause data inconsistencies.",
 			Recommendation: "Check etcd pod logs in openshift-etcd namespace and verify etcd member health.",
+			Remediation: &assessmentv1alpha1.RemediationGuidance{
+				Safety: assessmentv1alpha1.RemediationRequiresReview,
+				Commands: []assessmentv1alpha1.RemediationCommand{
+					{Command: "oc get co etcd -o yaml", Description: "View etcd operator status"},
+					{Command: "oc get pods -n openshift-etcd -l app=etcd", Description: "Check etcd pods"},
+					{Command: "oc rsh -n openshift-etcd <etcd-pod> etcdctl endpoint health --cluster", Description: "Check etcd cluster health"},
+				},
+				EstimatedImpact: "Depends on the root cause; may require etcd member replacement",
+			},
 		})
 	} else if !isAvailable {
 		findings = append(findings, assessmentv1alpha1.Finding{
@@ -257,6 +275,16 @@ func (v *APIServerValidator) checkEncryption(ctx context.Context, c client.Clien
 			References: []string{
 				"https://docs.openshift.com/container-platform/latest/security/encrypting-etcd.html",
 			},
+			Remediation: &assessmentv1alpha1.RemediationGuidance{
+				Safety: assessmentv1alpha1.RemediationDestructive,
+				Commands: []assessmentv1alpha1.RemediationCommand{
+					{Command: "oc get apiserver cluster -o jsonpath='{.spec.encryption}'", Description: "Check current encryption configuration"},
+					{Command: "oc patch apiserver cluster --type merge -p '{\"spec\":{\"encryption\":{\"type\":\"aescbc\"}}}'", Description: "Enable etcd encryption with aescbc", RequiresConfirmation: true},
+				},
+				DocumentationURL: "https://docs.openshift.com/container-platform/latest/security/encrypting-etcd.html",
+				EstimatedImpact:  "Enabling encryption triggers re-encryption of all secrets; may temporarily increase etcd load",
+				Prerequisites:    []string{"Ensure etcd cluster is healthy before enabling encryption"},
+			},
 		})
 	} else {
 		findings = append(findings, assessmentv1alpha1.Finding{
@@ -301,6 +329,15 @@ func (v *APIServerValidator) checkAuditPolicy(ctx context.Context, c client.Clie
 			Recommendation: "Enable audit logging with at least 'Default' profile for security visibility.",
 			References: []string{
 				"https://docs.openshift.com/container-platform/latest/security/audit-log-policy-config.html",
+			},
+			Remediation: &assessmentv1alpha1.RemediationGuidance{
+				Safety: assessmentv1alpha1.RemediationSafeApply,
+				Commands: []assessmentv1alpha1.RemediationCommand{
+					{Command: "oc get apiserver cluster -o jsonpath='{.spec.audit}'", Description: "Check current audit configuration"},
+					{Command: "oc patch apiserver cluster --type merge -p '{\"spec\":{\"audit\":{\"profile\":\"Default\"}}}'", Description: "Enable default audit logging"},
+				},
+				DocumentationURL: "https://docs.openshift.com/container-platform/latest/security/audit-log-policy-config.html",
+				EstimatedImpact:  "Enables audit logging; may slightly increase API server resource usage",
 			},
 		})
 	case "Default", "WriteRequestBodies", "AllRequestBodies":

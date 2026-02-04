@@ -110,6 +110,15 @@ func (v *NodesValidator) checkNodeCount(nodes *corev1.NodeList, profile profiles
 			Description:    fmt.Sprintf("Cluster has %d control plane nodes, minimum recommended is %d for %s profile.", controlPlaneCount, profile.Thresholds.MinControlPlaneNodes, profile.Name),
 			Impact:         "Fewer control plane nodes reduce the cluster's ability to tolerate failures and may impact high availability.",
 			Recommendation: fmt.Sprintf("Consider adding control plane nodes to meet the minimum of %d for high availability.", profile.Thresholds.MinControlPlaneNodes),
+			Remediation: &assessmentv1alpha1.RemediationGuidance{
+				Safety: assessmentv1alpha1.RemediationDestructive,
+				Commands: []assessmentv1alpha1.RemediationCommand{
+					{Command: "oc get nodes -l node-role.kubernetes.io/master=", Description: "List current control plane nodes"},
+					{Command: "oc get machines -n openshift-machine-api -l machine.openshift.io/cluster-api-machine-role=master", Description: "List control plane machines"},
+				},
+				DocumentationURL: "https://docs.openshift.com/container-platform/latest/machine_management/control_plane_machine_management/cpmso-about.html",
+				EstimatedImpact:  "Adding control plane nodes requires infrastructure provisioning and etcd membership changes",
+			},
 		})
 	} else {
 		findings = append(findings, assessmentv1alpha1.Finding{
@@ -137,6 +146,15 @@ func (v *NodesValidator) checkNodeCount(nodes *corev1.NodeList, profile profiles
 			Description:    fmt.Sprintf("Cluster has %d worker nodes, minimum recommended is %d for %s profile.", workerCount, profile.Thresholds.MinWorkerNodes, profile.Name),
 			Impact:         "Fewer worker nodes limit workload capacity and fault tolerance.",
 			Recommendation: fmt.Sprintf("Consider adding worker nodes to meet the minimum of %d for better capacity.", profile.Thresholds.MinWorkerNodes),
+			Remediation: &assessmentv1alpha1.RemediationGuidance{
+				Safety: assessmentv1alpha1.RemediationRequiresReview,
+				Commands: []assessmentv1alpha1.RemediationCommand{
+					{Command: "oc get machinesets -n openshift-machine-api", Description: "List MachineSets to scale"},
+					{Command: "oc scale machineset <machineset-name> -n openshift-machine-api --replicas=<count>", Description: "Scale up a MachineSet to add worker nodes", RequiresConfirmation: true},
+				},
+				DocumentationURL: "https://docs.openshift.com/container-platform/latest/machine_management/manually-scaling-machineset.html",
+				EstimatedImpact:  "New worker nodes will be provisioned and join the cluster",
+			},
 		})
 	} else {
 		findings = append(findings, assessmentv1alpha1.Finding{
@@ -183,6 +201,15 @@ func (v *NodesValidator) checkNodeConditions(nodes *corev1.NodeList) []assessmen
 			Description:    fmt.Sprintf("%d node(s) are not in Ready state: %s", len(notReadyNodes), strings.Join(notReadyNodes, ", ")),
 			Impact:         "Nodes that are not ready cannot run workloads and may indicate infrastructure issues.",
 			Recommendation: "Investigate the not-ready nodes. Check node status with 'oc describe node <node-name>' and review kubelet logs.",
+			Remediation: &assessmentv1alpha1.RemediationGuidance{
+				Safety: assessmentv1alpha1.RemediationRequiresReview,
+				Commands: []assessmentv1alpha1.RemediationCommand{
+					{Command: "oc get nodes -o wide | grep -v Ready", Description: "List not-ready nodes"},
+					{Command: "oc describe node <node-name>", Description: "Inspect node conditions and events"},
+					{Command: "oc adm node-logs <node-name> --unit=kubelet --since=-1h", Description: "View recent kubelet logs"},
+				},
+				EstimatedImpact: "Depends on the root cause; nodes may need to be rebooted or replaced",
+			},
 		})
 	} else {
 		findings = append(findings, assessmentv1alpha1.Finding{
@@ -205,6 +232,14 @@ func (v *NodesValidator) checkNodeConditions(nodes *corev1.NodeList) []assessmen
 			Description:    fmt.Sprintf("Nodes experiencing resource pressure: %s", strings.Join(unhealthyNodes, ", ")),
 			Impact:         "Nodes under resource pressure may evict pods and degrade workload performance.",
 			Recommendation: "Review resource usage on affected nodes and consider adding capacity or rebalancing workloads.",
+			Remediation: &assessmentv1alpha1.RemediationGuidance{
+				Safety: assessmentv1alpha1.RemediationRequiresReview,
+				Commands: []assessmentv1alpha1.RemediationCommand{
+					{Command: "oc adm top nodes", Description: "View current resource usage across nodes"},
+					{Command: "oc describe node <node-name> | grep -A10 Conditions", Description: "Check conditions on a specific node"},
+				},
+				EstimatedImpact: "May require workload redistribution or additional node capacity",
+			},
 		})
 	}
 
@@ -243,6 +278,13 @@ func (v *NodesValidator) checkNodeRoles(nodes *corev1.NodeList) []assessmentv1al
 			Description:    fmt.Sprintf("%d node(s) do not have a recognized role: %s", len(noRoleNodes), strings.Join(noRoleNodes, ", ")),
 			Impact:         "Nodes without proper roles may not be included in MachineConfigPools and could have inconsistent configuration.",
 			Recommendation: "Ensure nodes have appropriate role labels (worker, master, infra).",
+			Remediation: &assessmentv1alpha1.RemediationGuidance{
+				Safety: assessmentv1alpha1.RemediationSafeApply,
+				Commands: []assessmentv1alpha1.RemediationCommand{
+					{Command: "oc label node <node-name> node-role.kubernetes.io/worker=", Description: "Add the worker role label to a node"},
+				},
+				EstimatedImpact: "Labeling a node may trigger MachineConfigPool updates",
+			},
 		})
 	}
 
@@ -287,6 +329,14 @@ func (v *NodesValidator) checkNodeOS(nodes *corev1.NodeList) []assessmentv1alpha
 			Description:    fmt.Sprintf("Nodes are running different OS versions: %s", strings.Join(osInfo, ", ")),
 			Impact:         "Mixed OS versions can complicate troubleshooting and may indicate incomplete updates.",
 			Recommendation: "Ensure all nodes are updated to the same OS version. Check MachineConfigPool status.",
+			Remediation: &assessmentv1alpha1.RemediationGuidance{
+				Safety: assessmentv1alpha1.RemediationRequiresReview,
+				Commands: []assessmentv1alpha1.RemediationCommand{
+					{Command: "oc get machineconfigpool", Description: "Check MachineConfigPool update status"},
+					{Command: "oc get nodes -o custom-columns=NAME:.metadata.name,OS:.status.nodeInfo.osImage", Description: "View OS version per node"},
+				},
+				EstimatedImpact: "MachineConfig updates cause rolling node reboots",
+			},
 		})
 	} else {
 		for os := range osVersions {

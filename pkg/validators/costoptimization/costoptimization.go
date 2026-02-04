@@ -150,6 +150,15 @@ func (v *CostOptimizationValidator) checkOrphanPVCs(ctx context.Context, c clien
 			Description:    fmt.Sprintf("Found %d bound PVC(s) not attached to any pod (total size: %s): %s...", len(orphanPVCs), totalOrphanSize.String(), strings.Join(sample, ", ")),
 			Impact:         "Orphan PVCs consume storage resources without being used.",
 			Recommendation: "Review orphan PVCs and delete those no longer needed.",
+			Remediation: &assessmentv1alpha1.RemediationGuidance{
+				Safety: assessmentv1alpha1.RemediationRequiresReview,
+				Commands: []assessmentv1alpha1.RemediationCommand{
+					{Command: "oc get pvc -A --field-selector=status.phase=Bound -o json | jq '.items[] | select(.metadata.namespace | test(\"^openshift-|^kube-\") | not) | .metadata.namespace + \"/\" + .metadata.name'", Description: "List all bound PVCs in user namespaces"},
+					{Command: "oc delete pvc <pvc-name> -n <namespace>", Description: "Delete an orphan PVC", RequiresConfirmation: true},
+				},
+				EstimatedImpact: "Deleting a PVC permanently removes the associated storage volume",
+				Prerequisites:   []string{"Verify the PVC is not needed by any current or future workload"},
+			},
 		})
 	} else {
 		findings = append(findings, assessmentv1alpha1.Finding{
@@ -274,6 +283,14 @@ func (v *CostOptimizationValidator) checkResourceSpecifications(ctx context.Cont
 			Recommendation: "Define resource requests for all production workloads.",
 			References: []string{
 				"https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/",
+			},
+			Remediation: &assessmentv1alpha1.RemediationGuidance{
+				Safety: assessmentv1alpha1.RemediationSafeApply,
+				Commands: []assessmentv1alpha1.RemediationCommand{
+					{Command: "oc get pods -A -o json | jq '.items[] | select(.spec.containers[].resources.requests == null) | .metadata.namespace + \"/\" + .metadata.name' | head -20", Description: "List pods without resource requests"},
+				},
+				DocumentationURL: "https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/",
+				EstimatedImpact:  "Adding resource requests improves scheduling decisions",
 			},
 		})
 	} else {

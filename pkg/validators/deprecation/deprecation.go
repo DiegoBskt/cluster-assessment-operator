@@ -111,6 +111,14 @@ func (v *DeprecationValidator) checkDeprecatedPatterns(ctx context.Context, c cl
 				References: []string{
 					"https://kubernetes.io/docs/concepts/services-networking/ingress/",
 				},
+				Remediation: &assessmentv1alpha1.RemediationGuidance{
+					Safety: assessmentv1alpha1.RemediationSafeApply,
+					Commands: []assessmentv1alpha1.RemediationCommand{
+						{Command: "oc get ingress -A -o json | jq '.items[] | select(.spec.ingressClassName == null) | .metadata.namespace + \"/\" + .metadata.name'", Description: "List Ingresses without IngressClassName"},
+						{Command: "oc patch ingress <name> -n <namespace> --type merge -p '{\"spec\":{\"ingressClassName\":\"openshift-default\"}}'", Description: "Set IngressClassName on an Ingress"},
+					},
+					EstimatedImpact: "Setting IngressClassName ensures the correct ingress controller handles the route",
+				},
 			})
 		}
 	}

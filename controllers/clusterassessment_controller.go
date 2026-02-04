@@ -38,11 +38,13 @@ import (
 	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	configv1 "github.com/openshift/api/config/v1"
 
 	assessmentv1alpha1 "github.com/openshift-assessment/cluster-assessment-operator/api/v1alpha1"
+	"github.com/openshift-assessment/cluster-assessment-operator/pkg/history"
 	"github.com/openshift-assessment/cluster-assessment-operator/pkg/metrics"
 	"github.com/openshift-assessment/cluster-assessment-operator/pkg/profiles"
 	"github.com/openshift-assessment/cluster-assessment-operator/pkg/report"
@@ -211,8 +213,14 @@ func (r *ClusterAssessmentReconciler) runAssessment(ctx context.Context, assessm
 		return ctrl.Result{}, err
 	}
 
-	// Get the profile
-	profile := profiles.GetProfile(assessment.Spec.Profile)
+	// Resolve the profile (supports built-in names and custom AssessmentProfile CRs)
+	resolver := profiles.NewResolver(r.Client)
+	profile, err := resolver.Resolve(ctx, assessment.Spec.Profile)
+	if err != nil {
+		logger.Error(err, "Failed to resolve profile", "profile", assessment.Spec.Profile)
+		return r.updateStatus(ctx, assessment, assessmentv1alpha1.PhaseFailed,
+			fmt.Sprintf("Profile resolution failed: %v", err))
+	}
 	logger.Info("Using profile", "profile", profile.Name)
 
 	// Collect cluster info
@@ -294,6 +302,41 @@ func (r *ClusterAssessmentReconciler) runAssessment(ctx context.Context, assessm
 	if err != nil {
 		logger.Error(err, "Failed to update status")
 		return ctrl.Result{}, err
+	}
+
+	// Create historical snapshot if tracking is enabled
+	historyLimit := 90
+	if assessment.Spec.HistoryLimit != nil {
+		historyLimit = *assessment.Spec.HistoryLimit
+	}
+	if historyLimit > 0 {
+		snapshotMgr := history.NewSnapshotManager(r.Client)
+		delta, snapshotCount, snapErr := snapshotMgr.CreateSnapshot(ctx, assessment)
+		if snapErr != nil {
+			logger.Error(snapErr, "Failed to create assessment snapshot")
+		} else {
+			// Update delta and snapshot count in status
+			_ = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+				latest := &assessmentv1alpha1.ClusterAssessment{}
+				if err := r.Get(ctx, client.ObjectKeyFromObject(assessment), latest); err != nil {
+					return err
+				}
+				latest.Status.Delta = delta
+				latest.Status.SnapshotCount = snapshotCount
+				return r.Status().Update(ctx, latest)
+			})
+
+			// Record trend metrics
+			if delta != nil {
+				metrics.RecordTrendMetrics(
+					assessment.Name,
+					delta.ScoreDelta,
+					len(delta.NewFindings),
+					len(delta.ResolvedFindings),
+					len(delta.RegressionFindings),
+				)
+			}
+		}
 	}
 
 	// Record Prometheus metrics
@@ -779,5 +822,30 @@ func (r *ClusterAssessmentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&assessmentv1alpha1.ClusterAssessment{}).
 		Owns(&corev1.ConfigMap{}).
+		Watches(&assessmentv1alpha1.AssessmentProfile{},
+			handler.EnqueueRequestsFromMapFunc(r.findAssessmentsForProfile)).
 		Complete(r)
+}
+
+// findAssessmentsForProfile returns reconcile requests for all ClusterAssessments
+// that reference the given AssessmentProfile.
+func (r *ClusterAssessmentReconciler) findAssessmentsForProfile(ctx context.Context, obj client.Object) []ctrl.Request {
+	logger := log.FromContext(ctx)
+	profileName := obj.GetName()
+
+	assessmentList := &assessmentv1alpha1.ClusterAssessmentList{}
+	if err := r.List(ctx, assessmentList); err != nil {
+		logger.Error(err, "Failed to list ClusterAssessments for profile watch")
+		return nil
+	}
+
+	var requests []ctrl.Request
+	for _, assessment := range assessmentList.Items {
+		if assessment.Spec.Profile == profileName {
+			requests = append(requests, ctrl.Request{
+				NamespacedName: client.ObjectKeyFromObject(&assessment),
+			})
+		}
+	}
+	return requests
 }
