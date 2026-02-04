@@ -8,7 +8,6 @@ import {
     BreadcrumbItem,
     Split,
     SplitItem,
-    Button,
     Label,
     Flex,
     FlexItem,
@@ -19,32 +18,18 @@ import {
     Tabs,
     Tab,
     TabTitleText,
-    Modal,
-    ModalVariant,
 } from '@patternfly/react-core';
 import {
     ExclamationCircleIcon,
-    SyncIcon,
     CheckCircleIcon,
     ExclamationTriangleIcon,
 } from '@patternfly/react-icons';
-import { useK8sWatchResource, k8sPatch, K8sModel } from '@openshift-console/dynamic-plugin-sdk';
+import { useK8sWatchResource } from '@openshift-console/dynamic-plugin-sdk';
 import { Link } from 'react-router-dom';
 import { ClusterAssessment } from '../types';
 import { ScoreGauge } from './ScoreGauge';
 import { FindingsTable } from './FindingsTable';
 import './styles.css';
-
-const clusterAssessmentModel: K8sModel = {
-    apiVersion: 'v1alpha1',
-    apiGroup: 'assessment.openshift.io',
-    kind: 'ClusterAssessment',
-    plural: 'clusterassessments',
-    abbr: 'CA',
-    label: 'Cluster Assessment',
-    labelPlural: 'Cluster Assessments',
-    namespaced: false,
-};
 
 const clusterAssessmentResource = (name: string) => ({
     groupVersionKind: {
@@ -59,8 +44,6 @@ const clusterAssessmentResource = (name: string) => ({
 export default function AssessmentDetails() {
     const { name } = useParams<{ name: string }>();
     const [activeTabKey, setActiveTabKey] = React.useState<string | number>(0);
-    const [isRerunning, setIsRerunning] = React.useState(false);
-    const [isConfirmModalOpen, setIsConfirmModalOpen] = React.useState(false);
 
     // Stable assessment data that only gets replaced with valid complete data.
     // This prevents the UI from going blank when the watch returns empty/stale data.
@@ -87,65 +70,6 @@ export default function AssessmentDetails() {
 
     // Use stableAssessment if available, otherwise fall back to watchData
     const assessment = stableAssessment || watchData;
-
-    // Open confirmation modal
-    const openConfirmModal = () => {
-        setIsConfirmModalOpen(true);
-    };
-
-    // Close confirmation modal
-    const closeConfirmModal = () => {
-        setIsConfirmModalOpen(false);
-    };
-
-    // Handle re-run assessment
-    const handleRerun = async () => {
-        if (!assessment || !name) return;
-
-        closeConfirmModal();
-        setIsRerunning(true);
-        try {
-            setStableAssessment(undefined);
-            // Add re-run annotation to trigger controller reconciliation
-            // Use JSON Patch operations that handle missing annotations object
-            const patches: { op: string; path: string; value?: unknown }[] = [];
-
-            // If annotations don't exist, create the object first
-            if (!assessment.metadata?.annotations) {
-                patches.push({
-                    op: 'add',
-                    path: '/metadata/annotations',
-                    value: { 'assessment.openshift.io/rerun': new Date().toISOString() },
-                });
-            } else {
-                patches.push({
-                    op: 'add',
-                    path: '/metadata/annotations/assessment.openshift.io~1rerun',
-                    value: new Date().toISOString(),
-                });
-            }
-
-            // Build a proper resource object with required fields for k8sPatch
-            const resourceForPatch = {
-                apiVersion: 'assessment.openshift.io/v1alpha1',
-                kind: 'ClusterAssessment',
-                metadata: {
-                    name: assessment.metadata.name,
-                    ...(assessment.metadata.annotations && { annotations: assessment.metadata.annotations }),
-                },
-            };
-
-            await k8sPatch({
-                model: clusterAssessmentModel,
-                resource: resourceForPatch,
-                data: patches,
-            });
-        } catch (err) {
-            console.error('Failed to re-run assessment:', err);
-        } finally {
-            setIsRerunning(false);
-        }
-    };
 
     if (error && !stableAssessment) {
         return (
@@ -222,38 +146,8 @@ export default function AssessmentDetails() {
                             </FlexItem>
                         </Flex>
                     </SplitItem>
-                    <SplitItem>
-                        <Button
-                            variant="secondary"
-                            icon={<SyncIcon />}
-                            onClick={openConfirmModal}
-                            isLoading={isRerunning}
-                            isDisabled={isRerunning || assessment?.status?.phase === 'Running'}
-                        >
-                            {isRerunning ? 'Re-running...' : 'Re-run Assessment'}
-                        </Button>
-                    </SplitItem>
                 </Split>
             </PageSection>
-
-            {/* Confirmation Modal */}
-            <Modal
-                variant={ModalVariant.small}
-                title="Re-run Assessment"
-                isOpen={isConfirmModalOpen}
-                onClose={closeConfirmModal}
-                actions={[
-                    <Button key="confirm" variant="primary" onClick={handleRerun}>
-                        Re-run
-                    </Button>,
-                    <Button key="cancel" variant="link" onClick={closeConfirmModal}>
-                        Cancel
-                    </Button>,
-                ]}
-            >
-                Are you sure you want to re-run the assessment <strong>{name}</strong>? This will
-                trigger a new assessment run and update the results.
-            </Modal>
 
             {/* Cards Grid Section */}
             <PageSection>
