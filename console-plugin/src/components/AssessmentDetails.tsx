@@ -29,6 +29,8 @@ import { Link } from 'react-router-dom';
 import { ClusterAssessment } from '../types';
 import { ScoreGauge } from './ScoreGauge';
 import { FindingsTable } from './FindingsTable';
+import DeltaBanner from './DeltaBanner';
+import TrendChart from './TrendChart';
 import './styles.css';
 
 const clusterAssessmentResource = (name: string) => ({
@@ -251,6 +253,9 @@ export default function AssessmentDetails() {
                     </div>
                 </div>
 
+                {/* Delta Banner */}
+                <DeltaBanner delta={(assessment?.status as any)?.delta} />
+
                 {/* Findings Table */}
                 <div className="ca-plugin__table-card">
                     <Tabs
@@ -275,6 +280,11 @@ export default function AssessmentDetails() {
                                 <FindingsTable
                                     findings={findings.filter((f) => f.status === 'FAIL' || f.status === 'WARN')}
                                 />
+                            </div>
+                        </Tab>
+                        <Tab eventKey={2} title={<TabTitleText>History &amp; Trends</TabTitleText>}>
+                            <div style={{ padding: '16px' }}>
+                                <TrendChart assessmentName={name || ''} />
                             </div>
                         </Tab>
                     </Tabs>

@@ -157,6 +157,16 @@ func (v *NetworkPolicyAuditValidator) checkNetworkPolicyCoverage(ctx context.Con
 			References: []string{
 				"https://kubernetes.io/docs/concepts/services-networking/network-policies/",
 			},
+			Remediation: &assessmentv1alpha1.RemediationGuidance{
+				Safety: assessmentv1alpha1.RemediationRequiresReview,
+				Commands: []assessmentv1alpha1.RemediationCommand{
+					{Command: "oc get networkpolicy -A --no-headers | awk '{print $1}' | sort -u", Description: "List namespaces with NetworkPolicies"},
+					{Command: "oc get namespaces --no-headers | awk '{print $1}' | grep -v '^openshift-\\|^kube-\\|^default$'", Description: "List user namespaces"},
+				},
+				DocumentationURL: "https://kubernetes.io/docs/concepts/services-networking/network-policies/",
+				EstimatedImpact:  "Adding NetworkPolicies restricts traffic; must be tested to avoid breaking connectivity",
+				Prerequisites:    []string{"Ensure the cluster network plugin supports NetworkPolicies (OVN-Kubernetes, OpenShift SDN)"},
+			},
 		})
 	} else if totalUserNs > 0 {
 		findings = append(findings, assessmentv1alpha1.Finding{
@@ -234,6 +244,14 @@ func (v *NetworkPolicyAuditValidator) checkAllowAllPolicies(ctx context.Context,
 			Description:    fmt.Sprintf("Found %d NetworkPolicy(ies) that allow all ingress traffic: %s", len(allowAllIngress), strings.Join(sample, ", ")),
 			Impact:         "Overly permissive policies may not provide meaningful network isolation.",
 			Recommendation: "Review and tighten NetworkPolicies to allow only necessary traffic.",
+			Remediation: &assessmentv1alpha1.RemediationGuidance{
+				Safety: assessmentv1alpha1.RemediationRequiresReview,
+				Commands: []assessmentv1alpha1.RemediationCommand{
+					{Command: "oc get networkpolicy -A -o json | jq '.items[] | select(.spec.ingress[]? | (.from == null or .from == []) and (.ports == null or .ports == [])) | .metadata.namespace + \"/\" + .metadata.name'", Description: "List allow-all ingress policies"},
+					{Command: "oc get networkpolicy <name> -n <namespace> -o yaml", Description: "Inspect a specific NetworkPolicy"},
+				},
+				EstimatedImpact: "Tightening policies may break existing connectivity; test in non-production first",
+			},
 		})
 	}
 

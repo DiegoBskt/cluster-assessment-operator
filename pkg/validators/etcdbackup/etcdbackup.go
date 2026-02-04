@@ -88,6 +88,15 @@ func (v *EtcdBackupValidator) Validate(ctx context.Context, c client.Client, pro
 			References: []string{
 				"https://docs.openshift.com/container-platform/latest/backup_and_restore/control_plane_backup_and_restore/backing-up-etcd.html",
 			},
+			Remediation: &assessmentv1alpha1.RemediationGuidance{
+				Safety: assessmentv1alpha1.RemediationSafeApply,
+				Commands: []assessmentv1alpha1.RemediationCommand{
+					{Command: "oc get csv -A | grep oadp", Description: "Check if OADP operator is installed"},
+					{Command: "oc debug node/<control-plane-node> -- chroot /host /usr/local/bin/cluster-backup.sh /home/core/backup", Description: "Run a manual etcd backup (one-time)", RequiresConfirmation: true},
+				},
+				DocumentationURL: "https://docs.openshift.com/container-platform/latest/backup_and_restore/control_plane_backup_and_restore/backing-up-etcd.html",
+				EstimatedImpact:  "Installing OADP enables automated backup management",
+			},
 		})
 	}
 

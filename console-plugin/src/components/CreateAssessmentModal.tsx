@@ -15,7 +15,8 @@ import {
     HelperTextItem,
 } from '@patternfly/react-core';
 import { ExclamationCircleIcon } from '@patternfly/react-icons';
-import { k8sCreate, K8sModel } from '@openshift-console/dynamic-plugin-sdk';
+import { k8sCreate, K8sModel, useK8sWatchResource } from '@openshift-console/dynamic-plugin-sdk';
+import { AssessmentProfile } from '../types';
 
 interface CreateAssessmentModalProps {
     isOpen: boolean;
@@ -34,6 +35,21 @@ const clusterAssessmentModel: K8sModel = {
     namespaced: false,
 };
 
+const assessmentProfileResource = {
+    groupVersionKind: {
+        group: 'assessment.openshift.io',
+        version: 'v1alpha1',
+        kind: 'AssessmentProfile',
+    },
+    isList: true,
+    namespaced: false,
+};
+
+const builtInProfiles = [
+    { value: 'production', label: 'Production (Strict)', description: 'Strict checks suitable for production environments.' },
+    { value: 'development', label: 'Development (Relaxed)', description: 'Relaxed checks suitable for development or test environments.' },
+];
+
 export default function CreateAssessmentModal({
     isOpen,
     onClose,
@@ -45,6 +61,29 @@ export default function CreateAssessmentModal({
     const [enableJson, setEnableJson] = React.useState(true);
     const [isSubmitting, setIsSubmitting] = React.useState(false);
     const [error, setError] = React.useState<string | null>(null);
+
+    const [customProfiles] = useK8sWatchResource<AssessmentProfile[]>(assessmentProfileResource);
+
+    const profileOptions = React.useMemo(() => {
+        const options = [...builtInProfiles];
+        if (customProfiles && customProfiles.length > 0) {
+            for (const cp of customProfiles) {
+                if (cp.status?.ready !== false) {
+                    options.push({
+                        value: cp.metadata.name,
+                        label: `${cp.metadata.name} (Custom - based on ${cp.spec.basedOn || 'production'})`,
+                        description: cp.spec.description || `Custom profile based on ${cp.spec.basedOn || 'production'}.`,
+                    });
+                }
+            }
+        }
+        return options;
+    }, [customProfiles]);
+
+    const selectedProfileDescription = React.useMemo(() => {
+        const found = profileOptions.find(p => p.value === profile);
+        return found?.description || '';
+    }, [profile, profileOptions]);
 
     const handleSubmit = async () => {
         if (!name.trim()) {
@@ -100,11 +139,6 @@ export default function CreateAssessmentModal({
         setError(null);
         onClose();
     };
-
-    const profileOptions = [
-        { value: 'production', label: 'Production (Strict)' },
-        { value: 'development', label: 'Development (Relaxed)' },
-    ];
 
     return (
         <Modal
@@ -167,9 +201,7 @@ export default function CreateAssessmentModal({
                     <FormHelperText>
                         <HelperText>
                             <HelperTextItem variant="default">
-                                {profile === 'production'
-                                    ? 'Strict checks suitable for production environments.'
-                                    : 'Relaxed checks suitable for development or test environments.'}
+                                {selectedProfileDescription}
                             </HelperTextItem>
                         </HelperText>
                     </FormHelperText>

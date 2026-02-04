@@ -32,6 +32,50 @@ rules:
     verbs:
       - update
 
+  # AssessmentSnapshot CRD management
+  - apiGroups:
+      - assessment.openshift.io
+    resources:
+      - assessmentsnapshots
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+  - apiGroups:
+      - assessment.openshift.io
+    resources:
+      - assessmentsnapshots/status
+    verbs:
+      - get
+      - update
+      - patch
+
+  # AssessmentProfile CRD management
+  - apiGroups:
+      - assessment.openshift.io
+    resources:
+      - assessmentprofiles
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+  - apiGroups:
+      - assessment.openshift.io
+    resources:
+      - assessmentprofiles/status
+    verbs:
+      - get
+      - update
+      - patch
+
   # Core resources (read-only)
   - apiGroups:
       - ""

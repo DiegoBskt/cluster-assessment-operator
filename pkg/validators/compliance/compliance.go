@@ -154,6 +154,16 @@ func (v *ComplianceValidator) checkPodSecurityAdmission(ctx context.Context, c c
 			References: []string{
 				"https://kubernetes.io/docs/concepts/security/pod-security-admission/",
 			},
+			Remediation: &assessmentv1alpha1.RemediationGuidance{
+				Safety: assessmentv1alpha1.RemediationSafeApply,
+				Commands: []assessmentv1alpha1.RemediationCommand{
+					{Command: "oc get namespaces -l '!pod-security.kubernetes.io/enforce' --no-headers | grep -v '^openshift-\\|^kube-\\|^default '", Description: "List user namespaces without PSA enforce labels"},
+					{Command: "oc label namespace <namespace> pod-security.kubernetes.io/enforce=restricted", Description: "Apply restricted PSA enforcement to a namespace"},
+				},
+				DocumentationURL: "https://kubernetes.io/docs/concepts/security/pod-security-admission/",
+				EstimatedImpact:  "Pods not meeting the security standard will be rejected at admission",
+				Prerequisites:    []string{"Verify workloads comply with the target security standard before enforcing"},
+			},
 		})
 	}
 
@@ -197,6 +207,14 @@ func (v *ComplianceValidator) checkOAuthConfiguration(ctx context.Context, c cli
 			Recommendation: "Configure at least one identity provider (LDAP, OIDC, HTPasswd, etc.).",
 			References: []string{
 				"https://docs.openshift.com/container-platform/latest/authentication/understanding-identity-provider.html",
+			},
+			Remediation: &assessmentv1alpha1.RemediationGuidance{
+				Safety: assessmentv1alpha1.RemediationRequiresReview,
+				Commands: []assessmentv1alpha1.RemediationCommand{
+					{Command: "oc get oauth cluster -o yaml", Description: "View current OAuth configuration"},
+				},
+				DocumentationURL: "https://docs.openshift.com/container-platform/latest/authentication/understanding-identity-provider.html",
+				EstimatedImpact:  "Configuring an identity provider enables user authentication beyond kubeadmin",
 			},
 		})
 	} else {
@@ -285,6 +303,16 @@ func (v *ComplianceValidator) checkKubeadminUser(ctx context.Context, c client.C
 			Recommendation: "After configuring identity providers, remove the kubeadmin user: oc delete secret kubeadmin -n kube-system",
 			References: []string{
 				"https://docs.openshift.com/container-platform/latest/authentication/remove-kubeadmin.html",
+			},
+			Remediation: &assessmentv1alpha1.RemediationGuidance{
+				Safety: assessmentv1alpha1.RemediationDestructive,
+				Commands: []assessmentv1alpha1.RemediationCommand{
+					{Command: "oc get oauth cluster -o jsonpath='{.spec.identityProviders[*].name}'", Description: "Verify identity providers are configured before removing kubeadmin"},
+					{Command: "oc delete secret kubeadmin -n kube-system", Description: "Remove the kubeadmin user", RequiresConfirmation: true},
+				},
+				DocumentationURL: "https://docs.openshift.com/container-platform/latest/authentication/remove-kubeadmin.html",
+				EstimatedImpact:  "Permanently removes kubeadmin access; ensure another admin user exists first",
+				Prerequisites:    []string{"At least one identity provider must be configured", "At least one user must have cluster-admin role"},
 			},
 		})
 	} else {

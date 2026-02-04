@@ -42,4 +42,54 @@ export interface Finding {
     impact?: string;
     recommendation?: string;
     references?: string[];
+    remediation?: RemediationGuidance;
+}
+
+export type RemediationSafety = 'safe-apply' | 'requires-review' | 'destructive';
+
+export interface RemediationCommand {
+    command: string;
+    description?: string;
+    requiresConfirmation?: boolean;
+}
+
+export interface RemediationGuidance {
+    safety: RemediationSafety;
+    commands?: RemediationCommand[];
+    documentationURL?: string;
+    estimatedImpact?: string;
+    prerequisites?: string[];
+}
+
+export interface AssessmentProfile {
+    metadata: {
+        name: string;
+        creationTimestamp: string;
+    };
+    spec: {
+        description?: string;
+        basedOn?: string;
+        thresholds?: Partial<ThresholdOverrides>;
+        enabledValidators?: string[];
+        disabledValidators?: string[];
+        disabledChecks?: string[];
+    };
+    status?: {
+        ready?: boolean;
+        message?: string;
+        resolvedValidatorCount?: number;
+    };
+}
+
+export interface ThresholdOverrides {
+    minControlPlaneNodes: number;
+    minWorkerNodes: number;
+    maxPodsPerNode: number;
+    maxClusterAdminBindings: number;
+    requireNetworkPolicy: boolean;
+    requireResourceQuotas: boolean;
+    requireLimitRanges: boolean;
+    maxDaysWithoutUpdate: number;
+    allowPrivilegedContainers: boolean;
+    requireDefaultStorageClass: boolean;
 }

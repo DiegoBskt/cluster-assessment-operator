@@ -378,6 +378,53 @@ func addFindingCard(pdf *gofpdf.Fpdf, f assessmentv1alpha1.Finding) {
 		pdf.SetY(startY + 28)
 	}
 
+	// Add remediation commands if present
+	if f.Remediation != nil && len(f.Remediation.Commands) > 0 {
+		if pdf.GetY() > 250 {
+			pdf.AddPage()
+		}
+
+		// Safety label
+		pdf.SetFont("Helvetica", "B", 7)
+		var safetyColor []int
+		switch f.Remediation.Safety {
+		case assessmentv1alpha1.RemediationSafeApply:
+			safetyColor = colorPass
+		case assessmentv1alpha1.RemediationRequiresReview:
+			safetyColor = colorWarn
+		case assessmentv1alpha1.RemediationDestructive:
+			safetyColor = colorFail
+		default:
+			safetyColor = colorInfo
+		}
+		pdf.SetTextColor(safetyColor[0], safetyColor[1], safetyColor[2])
+		pdf.CellFormat(0, 4, fmt.Sprintf("Remediation [%s]:", f.Remediation.Safety), "", 1, "L", false, 0, "")
+
+		// Commands
+		for _, cmd := range f.Remediation.Commands {
+			if pdf.GetY() > 270 {
+				pdf.AddPage()
+			}
+			pdf.SetFont("Helvetica", "", 7)
+			pdf.SetTextColor(80, 80, 80)
+			if cmd.Description != "" {
+				prefix := ""
+				if cmd.RequiresConfirmation {
+					prefix = "[!] "
+				}
+				pdf.CellFormat(0, 3, prefix+cmd.Description, "", 1, "L", false, 0, "")
+			}
+			pdf.SetFont("Courier", "", 7)
+			pdf.SetTextColor(0, 0, 0)
+			cmdText := cmd.Command
+			if len(cmdText) > 120 {
+				cmdText = cmdText[:117] + "..."
+			}
+			pdf.CellFormat(0, 3, "  $ "+cmdText, "", 1, "L", false, 0, "")
+			pdf.Ln(1)
+		}
+	}
+
 	pdf.Ln(2)
 }
 
@@ -411,6 +458,18 @@ func GenerateHTML(assessment *assessmentv1alpha1.ClusterAssessment) ([]byte, err
         .finding-desc { color: #555; margin-bottom: 5px; }
         .finding-meta { font-size: 11px; color: #888; }
         .recommendation { background: #fffaef; padding: 10px; margin-top: 10px; border-radius: 3px; font-style: italic; }
+        .remediation { background: #f0f4f8; padding: 12px; margin-top: 8px; border-radius: 5px; border: 1px solid #d0d7de; }
+        .remediation-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+        .safety-badge { padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: bold; color: white; }
+        .safety-safe-apply { background: #228B22; }
+        .safety-requires-review { background: #FFA500; }
+        .safety-destructive { background: #DC143C; }
+        .remediation-commands { list-style: none; padding: 0; margin: 8px 0 0 0; }
+        .remediation-commands li { background: #1e1e2e; color: #cdd6f4; padding: 8px 12px; margin: 4px 0; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 12px; }
+        .remediation-commands li.confirm { border-left: 3px solid #DC143C; }
+        .remediation-cmd-desc { color: #a6adc8; font-size: 11px; margin-bottom: 2px; font-family: 'Segoe UI', Arial, sans-serif; }
+        .remediation-prereqs { font-size: 12px; color: #555; margin-top: 6px; }
+        .remediation-link { font-size: 12px; margin-top: 6px; }
         .info-table { width: 100%; border-collapse: collapse; }
         .info-table td { padding: 8px; border-bottom: 1px solid #eee; }
         .info-table td:first-child { font-weight: bold; width: 200px; }
@@ -501,6 +560,50 @@ func GenerateHTML(assessment *assessmentv1alpha1.ClusterAssessment) ([]byte, err
 					} else {
 						// Render unsafe URLs as plain text
 						buf.WriteString(html.EscapeString(ref))
+					}
+				}
+				buf.WriteString(`</div>`)
+			}
+			if f.Remediation != nil {
+				buf.WriteString(`<div class="remediation">`)
+				buf.WriteString(`<div class="remediation-header">`)
+				buf.WriteString(`<strong>Remediation</strong>`)
+				safetyClass := "safety-" + strings.ReplaceAll(string(f.Remediation.Safety), " ", "-")
+				buf.WriteString(fmt.Sprintf(`<span class="safety-badge %s">%s</span>`, html.EscapeString(safetyClass), html.EscapeString(string(f.Remediation.Safety))))
+				buf.WriteString(`</div>`)
+				if f.Remediation.EstimatedImpact != "" {
+					buf.WriteString(fmt.Sprintf(`<div style="font-size: 12px; color: #555; margin-bottom: 6px;">Impact: %s</div>`, html.EscapeString(f.Remediation.EstimatedImpact)))
+				}
+				if len(f.Remediation.Prerequisites) > 0 {
+					buf.WriteString(`<div class="remediation-prereqs"><strong>Prerequisites:</strong><ul>`)
+					for _, prereq := range f.Remediation.Prerequisites {
+						buf.WriteString(fmt.Sprintf(`<li>%s</li>`, html.EscapeString(prereq)))
+					}
+					buf.WriteString(`</ul></div>`)
+				}
+				if len(f.Remediation.Commands) > 0 {
+					buf.WriteString(`<ul class="remediation-commands">`)
+					for _, cmd := range f.Remediation.Commands {
+						liClass := ""
+						if cmd.RequiresConfirmation {
+							liClass = ` class="confirm"`
+						}
+						buf.WriteString(fmt.Sprintf(`<li%s>`, liClass))
+						if cmd.Description != "" {
+							buf.WriteString(fmt.Sprintf(`<div class="remediation-cmd-desc">%s</div>`, html.EscapeString(cmd.Description)))
+						}
+						if cmd.RequiresConfirmation {
+							buf.WriteString("⚠ ")
+						}
+						buf.WriteString(html.EscapeString(cmd.Command))
+						buf.WriteString(`</li>`)
+					}
+					buf.WriteString(`</ul>`)
+				}
+				if f.Remediation.DocumentationURL != "" {
+					lowerURL := strings.ToLower(f.Remediation.DocumentationURL)
+					if strings.HasPrefix(lowerURL, "http://") || strings.HasPrefix(lowerURL, "https://") {
+						buf.WriteString(fmt.Sprintf(`<div class="remediation-link"><a href="%s">📖 Documentation</a></div>`, html.EscapeString(f.Remediation.DocumentationURL)))
 					}
 				}
 				buf.WriteString(`</div>`)

@@ -125,6 +125,17 @@ func (v *MachineConfigValidator) checkMachineConfigPools(ctx context.Context, c 
 			Description:    fmt.Sprintf("%d MachineConfigPool(s) are degraded: %s", len(degradedPools), strings.Join(degradedPools, "; ")),
 			Impact:         "Degraded MachineConfigPools indicate nodes that failed to apply configuration and may be in an inconsistent state.",
 			Recommendation: "Investigate the degraded nodes. Check MachineConfigDaemon logs and node status.",
+			Remediation: &assessmentv1alpha1.RemediationGuidance{
+				Safety: assessmentv1alpha1.RemediationRequiresReview,
+				Commands: []assessmentv1alpha1.RemediationCommand{
+					{Command: "oc get mcp", Description: "View MachineConfigPool status"},
+					{Command: "oc describe mcp <pool-name>", Description: "Inspect a degraded pool"},
+					{Command: "oc get nodes -l node-role.kubernetes.io/<pool-name>=", Description: "List nodes in the degraded pool"},
+					{Command: "oc debug node/<node-name> -- chroot /host journalctl -u machine-config-daemon --no-pager -n 50", Description: "View MachineConfigDaemon logs on a node"},
+				},
+				DocumentationURL: "https://docs.openshift.com/container-platform/latest/post_installation_configuration/machine-configuration-tasks.html",
+				EstimatedImpact:  "Depends on the root cause; may require node drain and reboot",
+			},
 		})
 	}
 

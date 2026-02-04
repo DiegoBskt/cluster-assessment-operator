@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-02-04
+
+### Added
+- **Custom Assessment Profiles** (new CRD):
+  - New `AssessmentProfile` cluster-scoped CRD for defining custom threshold profiles
+  - Pointer-based `ThresholdOverrides` with nil-means-inherit semantics from base profiles
+  - Profile resolver that checks built-in names first, then looks up `AssessmentProfile` CRs
+  - `AssessmentProfileReconciler` validates profiles and sets `status.ready`
+  - `ClusterAssessmentSpec.Profile` now accepts custom profile names (enum constraint removed)
+  - Validator filtering via `EnabledValidators`, `DisabledValidators`, and `DisabledChecks`
+  - Console plugin dynamically fetches custom profiles for the Create Assessment modal
+  - Sample CR: `config/samples/assessment_v1alpha1_assessmentprofile.yaml`
+
+- **Historical Tracking & Trend Analysis** (new CRD):
+  - New `AssessmentSnapshot` cluster-scoped CRD for point-in-time history storage
+  - `FindingSnapshot` compact format for storage-efficient history (~15KB per snapshot)
+  - `DeltaSummary` with new/resolved/regression/improved finding tracking and score delta
+  - `SnapshotManager` with `CreateSnapshot`, `ComputeDelta`, and `PruneHistory` methods
+  - Configurable retention via `ClusterAssessmentSpec.HistoryLimit` (default 90 snapshots)
+  - Delta and snapshot count stored in `ClusterAssessmentStatus` for quick access
+  - 4 new Prometheus metrics: `cluster_assessment_score_trend`, `cluster_assessment_new_findings_total`, `cluster_assessment_resolved_findings_total`, `cluster_assessment_regressions_total`
+  - Console plugin `TrendChart` component showing score history over time
+  - Console plugin `DeltaBanner` showing changes between consecutive runs
+  - New "History & Trends" tab in the Assessment Details page
+
+- **Guided Remediation**:
+  - New `RemediationGuidance` and `RemediationCommand` types on the `Finding` API
+  - `RemediationSafety` enum: `safe-apply`, `requires-review`, `destructive`
+  - All 18 validators enhanced with structured remediation data (42+ findings with remediation)
+  - Remediation commands are contextual `oc` commands with descriptions and confirmation flags
+  - Console plugin `RemediationPanel` with safety badges, `ClipboardCopy` commands, prerequisites, and documentation links
+  - HTML report remediation section with styled dark command blocks and safety badges
+  - PDF report remediation section with safety labels and formatted commands
+
+### Changed
+- RBAC role updated with permissions for `assessmentprofiles` and `assessmentsnapshots`
+- `main.go` registers `AssessmentProfileReconciler`
+- Controller uses profile resolver instead of direct `GetProfile()` call
+- Validator runner filters validators based on profile configuration
+
 ## [1.2.44] - 2026-02-04
 
 ### Removed
@@ -340,6 +380,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date | Description |
 |---------|------|-------------|
+| 1.3.0 | 2026-02-04 | Custom profiles, historical tracking, guided remediation |
 | 1.2.33 | 2026-02-02 | Re-run Assessment button fix |
 | 1.2.32 | 2026-01-29 | Security fixes, git export, performance optimizations |
 | 1.2.31 | 2026-01-21 | OLM console plugin deployment |
@@ -355,7 +396,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 | 1.1.0 | 2026-01-15 | 6 new validators (18 total) |
 | 1.0.0 | 2026-01-14 | Initial release |
 
-[Unreleased]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.2.33...HEAD
+[Unreleased]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.2.44...v1.3.0
+[1.2.44]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.2.33...v1.2.44
 [1.2.33]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.2.32...v1.2.33
 [1.2.32]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.2.31...v1.2.32
 [1.2.31]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.2.30...v1.2.31

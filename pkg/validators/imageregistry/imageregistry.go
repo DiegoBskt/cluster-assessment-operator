@@ -113,6 +113,15 @@ func (v *ImageRegistryValidator) checkRegistryConfig(ctx context.Context, c clie
 			References: []string{
 				"https://docs.openshift.com/container-platform/latest/registry/configuring-registry-operator.html",
 			},
+			Remediation: &assessmentv1alpha1.RemediationGuidance{
+				Safety: assessmentv1alpha1.RemediationRequiresReview,
+				Commands: []assessmentv1alpha1.RemediationCommand{
+					{Command: "oc get configs.imageregistry.operator.openshift.io cluster -o jsonpath='{.spec.managementState}'", Description: "Check current management state"},
+					{Command: "oc patch configs.imageregistry.operator.openshift.io cluster --type merge -p '{\"spec\":{\"managementState\":\"Managed\"}}'", Description: "Set registry to Managed state", RequiresConfirmation: true},
+				},
+				DocumentationURL: "https://docs.openshift.com/container-platform/latest/registry/configuring-registry-operator.html",
+				EstimatedImpact:  "Enables the internal image registry; requires storage configuration",
+			},
 		})
 	case "Managed":
 		findings = append(findings, assessmentv1alpha1.Finding{
@@ -151,6 +160,16 @@ func (v *ImageRegistryValidator) checkRegistryConfig(ctx context.Context, c clie
 			References: []string{
 				"https://docs.openshift.com/container-platform/latest/registry/configuring_registry_storage/configuring-registry-storage-baremetal.html",
 			},
+			Remediation: &assessmentv1alpha1.RemediationGuidance{
+				Safety: assessmentv1alpha1.RemediationRequiresReview,
+				Commands: []assessmentv1alpha1.RemediationCommand{
+					{Command: "oc get configs.imageregistry.operator.openshift.io cluster -o jsonpath='{.spec.storage}'", Description: "Check current storage configuration"},
+					{Command: "oc patch configs.imageregistry.operator.openshift.io cluster --type merge -p '{\"spec\":{\"storage\":{\"pvc\":{\"claim\":\"\"}}}}'", Description: "Configure PVC-based storage (auto-provisions a PVC)", RequiresConfirmation: true},
+				},
+				DocumentationURL: "https://docs.openshift.com/container-platform/latest/registry/configuring_registry_storage/configuring-registry-storage-baremetal.html",
+				EstimatedImpact:  "Configures persistent storage for the registry; existing images in emptyDir will be lost",
+				Prerequisites:    []string{"A default StorageClass must be available for automatic PVC provisioning"},
+			},
 		})
 	} else {
 		// Check for emptyDir
@@ -168,6 +187,16 @@ func (v *ImageRegistryValidator) checkRegistryConfig(ctx context.Context, c clie
 				Description:    "The image registry is configured with emptyDir storage.",
 				Impact:         "All images will be lost when the registry pod restarts.",
 				Recommendation: "Configure persistent storage (PVC, S3, Azure Blob, GCS) for production use.",
+				Remediation: &assessmentv1alpha1.RemediationGuidance{
+					Safety: assessmentv1alpha1.RemediationRequiresReview,
+					Commands: []assessmentv1alpha1.RemediationCommand{
+						{Command: "oc get configs.imageregistry.operator.openshift.io cluster -o jsonpath='{.spec.storage}'", Description: "Check current storage configuration"},
+						{Command: "oc patch configs.imageregistry.operator.openshift.io cluster --type merge -p '{\"spec\":{\"storage\":{\"pvc\":{\"claim\":\"\"}}}}'", Description: "Switch to PVC storage", RequiresConfirmation: true},
+					},
+					DocumentationURL: "https://docs.openshift.com/container-platform/latest/registry/configuring_registry_storage/configuring-registry-storage-baremetal.html",
+					EstimatedImpact:  "Migrates registry storage from emptyDir to persistent storage; existing images will need to be re-pushed",
+					Prerequisites:    []string{"A default StorageClass must be available"},
+				},
 			})
 		} else {
 			// Determine storage type
@@ -208,6 +237,15 @@ func (v *ImageRegistryValidator) checkRegistryConfig(ctx context.Context, c clie
 				Description:    fmt.Sprintf("The image registry is running with %d replica(s).", replicas),
 				Impact:         "Single replica reduces availability during updates or failures.",
 				Recommendation: "Configure at least 2 replicas for high availability in production.",
+				Remediation: &assessmentv1alpha1.RemediationGuidance{
+					Safety: assessmentv1alpha1.RemediationSafeApply,
+					Commands: []assessmentv1alpha1.RemediationCommand{
+						{Command: "oc get configs.imageregistry.operator.openshift.io cluster -o jsonpath='{.spec.replicas}'", Description: "Check current replica count"},
+						{Command: "oc patch configs.imageregistry.operator.openshift.io cluster --type merge -p '{\"spec\":{\"replicas\":2}}'", Description: "Scale image registry to 2 replicas"},
+					},
+					EstimatedImpact: "Adds an additional registry pod for high availability; requires shared storage backend",
+					Prerequisites:   []string{"Registry storage must support ReadWriteMany access mode (e.g., S3, Azure Blob, GCS)"},
+				},
 			})
 		} else if replicas >= 2 {
 			findings = append(findings, assessmentv1alpha1.Finding{

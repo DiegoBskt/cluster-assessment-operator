@@ -84,6 +84,42 @@ var (
 		},
 		[]string{"cluster_id", "cluster_version", "platform", "channel"},
 	)
+
+	// ScoreTrend tracks the score delta from the previous assessment run
+	ScoreTrend = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "cluster_assessment_score_trend",
+			Help: "Score delta from previous assessment run (positive = improved)",
+		},
+		[]string{"assessment_name"},
+	)
+
+	// NewFindingsCount tracks the number of new findings since last run
+	NewFindingsCount = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "cluster_assessment_new_findings_total",
+			Help: "Number of new findings since last assessment run",
+		},
+		[]string{"assessment_name"},
+	)
+
+	// ResolvedFindingsCount tracks the number of resolved findings since last run
+	ResolvedFindingsCount = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "cluster_assessment_resolved_findings_total",
+			Help: "Number of resolved findings since last assessment run",
+		},
+		[]string{"assessment_name"},
+	)
+
+	// RegressionCount tracks the number of regression findings since last run
+	RegressionCount = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "cluster_assessment_regressions_total",
+			Help: "Number of findings that worsened since last assessment run",
+		},
+		[]string{"assessment_name"},
+	)
 )
 
 func init() {
@@ -96,6 +132,10 @@ func init() {
 		AssessmentDuration,
 		ValidatorFindings,
 		ClusterInfo,
+		ScoreTrend,
+		NewFindingsCount,
+		ResolvedFindingsCount,
+		RegressionCount,
 	)
 }
 
@@ -141,4 +181,14 @@ func RecordCategoryMetrics(assessmentName, category string, passCount, warnCount
 	FindingsByCategory.WithLabelValues(assessmentName, category, "WARN").Set(float64(warnCount))
 	FindingsByCategory.WithLabelValues(assessmentName, category, "FAIL").Set(float64(failCount))
 	FindingsByCategory.WithLabelValues(assessmentName, category, "INFO").Set(float64(infoCount))
+}
+
+// RecordTrendMetrics records trend/delta metrics from historical tracking
+func RecordTrendMetrics(assessmentName string, scoreDelta *int, newFindings, resolvedFindings, regressions int) {
+	if scoreDelta != nil {
+		ScoreTrend.WithLabelValues(assessmentName).Set(float64(*scoreDelta))
+	}
+	NewFindingsCount.WithLabelValues(assessmentName).Set(float64(newFindings))
+	ResolvedFindingsCount.WithLabelValues(assessmentName).Set(float64(resolvedFindings))
+	RegressionCount.WithLabelValues(assessmentName).Set(float64(regressions))
 }

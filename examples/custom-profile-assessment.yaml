@@ -1,0 +1,22 @@
+apiVersion: assessment.openshift.io/v1alpha1
+kind: AssessmentProfile
+metadata:
+  name: financial-services
+spec:
+  description: "Strict profile for financial services clusters."
+  basedOn: production
+  thresholds:
+    maxClusterAdminBindings: 2
+    maxDaysWithoutUpdate: 30
+    allowPrivilegedContainers: false
+---
+apiVersion: assessment.openshift.io/v1alpha1
+kind: ClusterAssessment
+metadata:
+  name: finance-cluster-check
+spec:
+  profile: financial-services
+  reportStorage:
+    configMap:
+      enabled: true
+      format: "json,html,pdf"

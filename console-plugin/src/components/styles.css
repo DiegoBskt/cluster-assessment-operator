@@ -410,3 +410,38 @@
 .ca-plugin__result-value--total {
   color: var(--ca-text-primary);
 }
+
+/* ============================================
+   Remediation Panel
+   ============================================ */
+.ca-plugin__remediation-panel {
+  margin-top: 16px;
+  padding: 12px 16px;
+  border: 1px solid var(--ca-card-border);
+  border-radius: 6px;
+  background: var(--ca-header-bg);
+}
+
+.ca-plugin__remediation-impact {
+  margin: 8px 0;
+}
+
+.ca-plugin__remediation-prereqs {
+  margin: 8px 0;
+}
+
+.ca-plugin__remediation-commands {
+  margin: 12px 0;
+}
+
+.ca-plugin__remediation-command {
+  margin-bottom: 8px;
+}
+
+.ca-plugin__remediation-command:last-child {
+  margin-bottom: 0;
+}
+
+.ca-plugin__remediation-docs {
+  margin-top: 8px;
+}

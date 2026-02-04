@@ -31,8 +31,8 @@ type ClusterAssessmentSpec struct {
 	Schedule string `json:"schedule,omitempty"`
 
 	// Profile specifies the baseline profile to use for assessment.
-	// Valid values are: "production", "development"
-	// +kubebuilder:validation:Enum=production;development
+	// Can be a built-in profile name ("production", "development") or
+	// the name of a custom AssessmentProfile CR.
 	// +kubebuilder:default=production
 	// +optional
 	Profile string `json:"profile,omitempty"`
@@ -56,6 +56,13 @@ type ClusterAssessmentSpec struct {
 	// +kubebuilder:validation:Enum=INFO;PASS;WARN;FAIL
 	// +optional
 	MinSeverity string `json:"minSeverity,omitempty"`
+
+	// HistoryLimit is the maximum number of AssessmentSnapshot CRs to retain per assessment.
+	// Oldest snapshots are pruned when this limit is exceeded.
+	// Set to 0 to disable historical tracking. Defaults to 90.
+	// +kubebuilder:default=90
+	// +optional
+	HistoryLimit *int `json:"historyLimit,omitempty"`
 }
 
 // ReportStorageSpec configures report storage options
@@ -158,6 +165,14 @@ type ClusterAssessmentStatus struct {
 	// Message provides additional information about the current phase.
 	// +optional
 	Message string `json:"message,omitempty"`
+
+	// Delta summarizes changes from the previous assessment run.
+	// +optional
+	Delta *DeltaSummary `json:"delta,omitempty"`
+
+	// SnapshotCount is the number of historical snapshots retained for this assessment.
+	// +optional
+	SnapshotCount int `json:"snapshotCount,omitempty"`
 }
 
 // ClusterInfo contains metadata about the OpenShift cluster
@@ -259,6 +274,61 @@ type Finding struct {
 	// References provides links to relevant documentation.
 	// +optional
 	References []string `json:"references,omitempty"`
+
+	// Remediation provides structured guidance for resolving this finding.
+	// +optional
+	Remediation *RemediationGuidance `json:"remediation,omitempty"`
+}
+
+// RemediationSafety indicates the safety level of applying the remediation.
+// +kubebuilder:validation:Enum="safe-apply";"requires-review";"destructive"
+type RemediationSafety string
+
+const (
+	// RemediationSafeApply indicates the remediation is safe to apply directly.
+	RemediationSafeApply RemediationSafety = "safe-apply"
+	// RemediationRequiresReview indicates the remediation should be reviewed before applying.
+	RemediationRequiresReview RemediationSafety = "requires-review"
+	// RemediationDestructive indicates the remediation may cause service disruption.
+	RemediationDestructive RemediationSafety = "destructive"
+)
+
+// RemediationGuidance provides structured remediation information for a finding.
+type RemediationGuidance struct {
+	// Safety indicates the risk level of applying this remediation.
+	// +kubebuilder:validation:Enum="safe-apply";"requires-review";"destructive"
+	Safety RemediationSafety `json:"safety"`
+
+	// Commands is an ordered list of commands to remediate the finding.
+	// +optional
+	Commands []RemediationCommand `json:"commands,omitempty"`
+
+	// DocumentationURL links to relevant documentation.
+	// +optional
+	DocumentationURL string `json:"documentationURL,omitempty"`
+
+	// EstimatedImpact describes what will change when the remediation is applied.
+	// +optional
+	EstimatedImpact string `json:"estimatedImpact,omitempty"`
+
+	// Prerequisites lists conditions that should be met before applying the remediation.
+	// +optional
+	Prerequisites []string `json:"prerequisites,omitempty"`
+}
+
+// RemediationCommand represents a single command step in a remediation procedure.
+type RemediationCommand struct {
+	// Command is the shell command to execute.
+	Command string `json:"command"`
+
+	// Description explains what this command does.
+	// +optional
+	Description string `json:"description,omitempty"`
+
+	// RequiresConfirmation indicates this command is potentially dangerous
+	// and the user should confirm before executing.
+	// +optional
+	RequiresConfirmation bool `json:"requiresConfirmation,omitempty"`
 }
 
 // FindingStatus represents the status of a finding

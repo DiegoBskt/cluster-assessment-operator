@@ -1,0 +1,157 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.20.0
+  name: assessmentprofiles.assessment.openshift.io
+spec:
+  group: assessment.openshift.io
+  names:
+    kind: AssessmentProfile
+    listKind: AssessmentProfileList
+    plural: assessmentprofiles
+    shortNames:
+    - ap
+    singular: assessmentprofile
+  scope: Cluster
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.basedOn
+      name: BasedOn
+      type: string
+    - jsonPath: .status.ready
+      name: Ready
+      type: boolean
+    - jsonPath: .status.resolvedValidatorCount
+      name: Validators
+      type: integer
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: |-
+          AssessmentProfile defines a custom assessment profile that can be referenced
+          by ClusterAssessment resources. It inherits from a built-in base profile
+          and allows overriding specific thresholds and validator selections.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: AssessmentProfileSpec defines a custom assessment profile
+              with overridable thresholds.
+            properties:
+              basedOn:
+                default: production
+                description: |-
+                  BasedOn specifies the built-in profile to inherit defaults from.
+                  Valid values: "production", "development". Defaults to "production".
+                enum:
+                - production
+                - development
+                type: string
+              description:
+                description: Description explains the profile's purpose.
+                type: string
+              disabledChecks:
+                description: DisabledChecks lists specific check IDs to skip across
+                  all validators.
+                items:
+                  type: string
+                type: array
+              disabledValidators:
+                description: DisabledValidators lists validators to skip. Ignored
+                  if EnabledValidators is set.
+                items:
+                  type: string
+                type: array
+              enabledValidators:
+                description: |-
+                  EnabledValidators lists validators to enable. If set, only these validators run.
+                  Takes precedence over DisabledValidators.
+                items:
+                  type: string
+                type: array
+              thresholds:
+                description: |-
+                  Thresholds overrides specific threshold values from the base profile.
+                  Only fields that are set will override the base; unset fields inherit defaults.
+                properties:
+                  allowPrivilegedContainers:
+                    description: AllowPrivilegedContainers determines if privileged
+                      containers trigger warnings.
+                    type: boolean
+                  maxClusterAdminBindings:
+                    description: MaxClusterAdminBindings is the maximum acceptable
+                      cluster-admin bindings.
+                    type: integer
+                  maxDaysWithoutUpdate:
+                    description: MaxDaysWithoutUpdate is the maximum days since the
+                      last cluster update.
+                    type: integer
+                  maxPodsPerNode:
+                    description: MaxPodsPerNode is the maximum recommended pods per
+                      node.
+                    type: integer
+                  minControlPlaneNodes:
+                    description: MinControlPlaneNodes is the minimum expected control
+                      plane nodes.
+                    type: integer
+                  minWorkerNodes:
+                    description: MinWorkerNodes is the minimum expected worker nodes.
+                    type: integer
+                  requireDefaultStorageClass:
+                    description: RequireDefaultStorageClass requires a default StorageClass
+                      to be configured.
+                    type: boolean
+                  requireLimitRanges:
+                    description: RequireLimitRanges requires LimitRanges in namespaces.
+                    type: boolean
+                  requireNetworkPolicy:
+                    description: RequireNetworkPolicy requires NetworkPolicy in namespaces.
+                    type: boolean
+                  requireResourceQuotas:
+                    description: RequireResourceQuotas requires ResourceQuotas in
+                      namespaces.
+                    type: boolean
+                type: object
+            type: object
+          status:
+            description: AssessmentProfileStatus defines the observed state of an
+              AssessmentProfile.
+            properties:
+              message:
+                description: Message provides details about validation results or
+                  errors.
+                type: string
+              ready:
+                description: Ready indicates whether the profile has been validated
+                  and is usable.
+                type: boolean
+              resolvedValidatorCount:
+                description: ResolvedValidatorCount is the number of validators that
+                  will run with this profile.
+                type: integer
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
