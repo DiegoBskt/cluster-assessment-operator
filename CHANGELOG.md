@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.44] - 2026-02-04
+
+### Removed
+- **Re-run Assessment**: Removed the "Re-run Assessment" button and confirmation modal from the Console Plugin
+  - Assessments represent a point-in-time cluster snapshot; users should create a new assessment instead of re-running
+  - Removed frontend UI (button, modal, state management, rerun handler)
+  - Removed backend `RerunAnnotation` constant and `clearRerunAnnotation` controller logic
+  - Removed `assessment.openshift.io/rerun` annotation handling from reconciler
+
 ## [1.2.35] - 2026-02-02
 
 ### Fixed
