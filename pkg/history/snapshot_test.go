@@ -105,6 +105,7 @@ func TestComputeDelta_NewFindings(t *testing.T) {
 
 	if delta == nil {
 		t.Fatal("Expected non-nil delta")
+		return
 	}
 
 	sort.Strings(delta.NewFindings)

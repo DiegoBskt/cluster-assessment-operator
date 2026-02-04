@@ -6,14 +6,7 @@ import {
     FlexItem,
     Label,
 } from '@patternfly/react-core';
-
-interface DeltaSummary {
-    newFindings?: string[];
-    resolvedFindings?: string[];
-    regressionFindings?: string[];
-    improvedFindings?: string[];
-    scoreDelta?: number;
-}
+import { DeltaSummary } from '../types';
 
 interface DeltaBannerProps {
     delta?: DeltaSummary;

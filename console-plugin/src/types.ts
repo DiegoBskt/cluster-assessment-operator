@@ -27,6 +27,8 @@ export interface ClusterAssessment {
             nodeCount?: number;
         };
         findings?: Finding[];
+        delta?: DeltaSummary;
+        snapshotCount?: number;
     };
 }
 
@@ -59,6 +61,14 @@ export interface RemediationGuidance {
     documentationURL?: string;
     estimatedImpact?: string;
     prerequisites?: string[];
+}
+
+export interface DeltaSummary {
+    newFindings?: string[];
+    resolvedFindings?: string[];
+    regressionFindings?: string[];
+    improvedFindings?: string[];
+    scoreDelta?: number;
 }
 
 export interface AssessmentProfile {

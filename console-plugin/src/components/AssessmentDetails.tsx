@@ -254,7 +254,7 @@ export default function AssessmentDetails() {
                 </div>
 
                 {/* Delta Banner */}
-                <DeltaBanner delta={(assessment?.status as any)?.delta} />
+                <DeltaBanner delta={assessment?.status?.delta} />
 
                 {/* Findings Table */}
                 <div className="ca-plugin__table-card">

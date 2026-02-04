@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-02-04
+
+### Fixed
+- **TypeScript Types**: Added missing `delta` and `snapshotCount` fields to `ClusterAssessment` status interface
+- **TypeScript Types**: Moved `DeltaSummary` interface to shared types file; `DeltaBanner` now imports from shared types
+- **ESLint**: Removed `as any` cast in `AssessmentDetails.tsx` by properly typing the status object
+- **Lint**: Fixed unchecked `os.RemoveAll` return value in git export controller (errcheck)
+- **Lint**: Added unreachable `return` after `t.Fatal` in snapshot tests to satisfy staticcheck SA5011
+
 ## [1.3.0] - 2026-02-04
 
 ### Added
@@ -380,6 +389,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date | Description |
 |---------|------|-------------|
+| 1.3.1 | 2026-02-04 | Lint and type fixes |
 | 1.3.0 | 2026-02-04 | Custom profiles, historical tracking, guided remediation |
 | 1.2.33 | 2026-02-02 | Re-run Assessment button fix |
 | 1.2.32 | 2026-01-29 | Security fixes, git export, performance optimizations |
@@ -396,7 +406,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 | 1.1.0 | 2026-01-15 | 6 new validators (18 total) |
 | 1.0.0 | 2026-01-14 | Initial release |
 
-[Unreleased]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.3.1...HEAD
+[1.3.1]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.2.44...v1.3.0
 [1.2.44]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.2.33...v1.2.44
 [1.2.33]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.2.32...v1.2.33
