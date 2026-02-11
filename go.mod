@@ -3,7 +3,7 @@ module github.com/openshift-assessment/cluster-assessment-operator
 go 1.25.0
 
 require (
-	github.com/go-git/go-git/v5 v5.16.4
+	github.com/go-git/go-git/v5 v5.16.5
 	github.com/jung-kurt/gofpdf v1.16.2
 	github.com/openshift/api v0.0.0-20260113121726-a0ffeb320368
 	github.com/prometheus/client_golang v1.22.0
@@ -64,7 +64,7 @@ require (
 	go.uber.org/zap v1.27.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
-	golang.org/x/crypto v0.44.0 // indirect
+	golang.org/x/crypto v0.45.0 // indirect
 	golang.org/x/net v0.47.0 // indirect
 	golang.org/x/oauth2 v0.30.0 // indirect
 	golang.org/x/sync v0.18.0 // indirect
