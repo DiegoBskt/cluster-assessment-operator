@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"fmt"
 	"html"
+	"sort"
 	"strings"
 	"time"
 
@@ -36,25 +37,66 @@ var (
 	colorInfo = []int{70, 130, 180} // Steel Blue
 )
 
-// GeneratePDF creates a PDF report from the assessment.
+// colorForStatus returns the color palette for a given FindingStatus.
+func colorForStatus(status assessmentv1alpha1.FindingStatus) []int {
+	switch status {
+	case assessmentv1alpha1.FindingStatusPass:
+		return colorPass
+	case assessmentv1alpha1.FindingStatusWarn:
+		return colorWarn
+	case assessmentv1alpha1.FindingStatusFail:
+		return colorFail
+	case assessmentv1alpha1.FindingStatusInfo:
+		return colorInfo
+	default:
+		return colorInfo
+	}
+}
+
+// labelForStatus returns the display label for a given FindingStatus.
+func labelForStatus(status assessmentv1alpha1.FindingStatus) string {
+	switch status {
+	case assessmentv1alpha1.FindingStatusPass:
+		return "PASS"
+	case assessmentv1alpha1.FindingStatusWarn:
+		return "WARNING"
+	case assessmentv1alpha1.FindingStatusFail:
+		return "FAILED"
+	case assessmentv1alpha1.FindingStatusInfo:
+		return "INFO"
+	default:
+		return string(status)
+	}
+}
+
+// pageWidth returns the usable content width (A4 minus margins).
+const (
+	pageContentWidth = 180.0 // A4 width (210mm) - 15mm margins on each side
+	leftMargin       = 15.0
+)
+
+// GeneratePDF creates a professional PDF report from the assessment.
 func GeneratePDF(assessment *assessmentv1alpha1.ClusterAssessment) ([]byte, error) {
 	pdf := gofpdf.New("P", "mm", "A4", "")
-	pdf.SetMargins(15, 15, 15)
+	pdf.SetMargins(leftMargin, 15, 15)
 
-	// Add first page
+	// Register footer with page numbers
+	pdf.SetFooterFunc(func() {
+		pdf.SetY(-15)
+		pdf.SetFont("Helvetica", "", 8)
+		pdf.SetTextColor(150, 150, 150)
+		pdf.CellFormat(0, 10,
+			fmt.Sprintf("OpenShift Cluster Assessment Report  |  %s  |  Page %d/{nb}",
+				assessment.Status.ClusterInfo.ClusterID, pdf.PageNo()),
+			"", 0, "C", false, 0, "")
+	})
+	pdf.AliasNbPages("")
+
+	// --- Cover Page ---
+	addCoverPage(pdf, assessment)
+
+	// --- Content Pages ---
 	pdf.AddPage()
-
-	// Title
-	pdf.SetFont("Helvetica", "B", 24)
-	pdf.SetTextColor(0, 51, 102)
-	pdf.CellFormat(0, 15, "OpenShift Cluster Assessment Report", "", 1, "C", false, 0, "")
-	pdf.Ln(5)
-
-	// Subtitle with date
-	pdf.SetFont("Helvetica", "", 12)
-	pdf.SetTextColor(100, 100, 100)
-	pdf.CellFormat(0, 8, fmt.Sprintf("Generated: %s", time.Now().Format("January 2, 2006 at 15:04 MST")), "", 1, "C", false, 0, "")
-	pdf.Ln(10)
 
 	// Cluster Info Box
 	addSectionTitle(pdf, "Cluster Information")
@@ -72,14 +114,25 @@ func GeneratePDF(assessment *assessmentv1alpha1.ClusterAssessment) ([]byte, erro
 		pdf.Ln(10)
 	}
 
-	// Findings by Category
+	// Delta Section (changes since last run)
+	if assessment.Status.Delta != nil {
+		addDeltaSection(pdf, assessment)
+		pdf.Ln(10)
+	}
+
+	// Findings by Category (horizontal bar chart)
 	addSectionTitle(pdf, "Findings by Category")
-	addFindingsByCategory(pdf, assessment)
+	addCategoryBarChart(pdf, assessment)
+	pdf.Ln(5)
 
 	// Detailed Findings
 	pdf.AddPage()
 	addSectionTitle(pdf, "Detailed Findings")
 	addDetailedFindings(pdf, assessment)
+
+	if err := pdf.Error(); err != nil {
+		return nil, fmt.Errorf("PDF generation error: %w", err)
+	}
 
 	// Output to bytes
 	var buf bytes.Buffer
@@ -88,6 +141,127 @@ func GeneratePDF(assessment *assessmentv1alpha1.ClusterAssessment) ([]byte, erro
 	}
 
 	return buf.Bytes(), nil
+}
+
+// addCoverPage renders a professional cover page.
+func addCoverPage(pdf *gofpdf.Fpdf, assessment *assessmentv1alpha1.ClusterAssessment) {
+	pdf.AddPage()
+
+	// Top accent bar
+	pdf.SetFillColor(0, 51, 102)
+	pdf.Rect(0, 0, 210, 8, "F")
+
+	// Main title area
+	pdf.SetY(60)
+	pdf.SetFont("Helvetica", "B", 32)
+	pdf.SetTextColor(0, 51, 102)
+	pdf.CellFormat(0, 15, "OpenShift Cluster", "", 1, "C", false, 0, "")
+	pdf.CellFormat(0, 15, "Assessment Report", "", 1, "C", false, 0, "")
+	pdf.Ln(10)
+
+	// Horizontal rule
+	pdf.SetDrawColor(0, 51, 102)
+	pdf.SetLineWidth(0.8)
+	pdf.Line(50, pdf.GetY(), 160, pdf.GetY())
+	pdf.Ln(12)
+
+	// Cluster info on cover
+	pdf.SetFont("Helvetica", "", 14)
+	pdf.SetTextColor(80, 80, 80)
+	info := assessment.Status.ClusterInfo
+	if info.ClusterID != "" {
+		pdf.CellFormat(0, 8, fmt.Sprintf("Cluster: %s", info.ClusterID), "", 1, "C", false, 0, "")
+	}
+	if info.ClusterVersion != "" {
+		pdf.CellFormat(0, 8, fmt.Sprintf("OpenShift %s  |  %s", info.ClusterVersion, info.Platform), "", 1, "C", false, 0, "")
+	}
+	pdf.Ln(5)
+
+	// Date
+	pdf.SetFont("Helvetica", "", 12)
+	pdf.SetTextColor(120, 120, 120)
+	pdf.CellFormat(0, 8, fmt.Sprintf("Generated: %s", time.Now().Format("January 2, 2006 at 15:04 MST")), "", 1, "C", false, 0, "")
+	pdf.Ln(15)
+
+	// Score circle (large, centered)
+	if assessment.Status.Summary.Score != nil {
+		score := *assessment.Status.Summary.Score
+		centerX := 105.0
+		centerY := pdf.GetY() + 25.0
+		radius := 22.0
+
+		// Circle background
+		color := colorForStatus(assessmentv1alpha1.FindingStatusPass)
+		if score < 60 {
+			color = colorForStatus(assessmentv1alpha1.FindingStatusFail)
+		} else if score < 80 {
+			color = colorForStatus(assessmentv1alpha1.FindingStatusWarn)
+		}
+		pdf.SetFillColor(color[0], color[1], color[2])
+		pdf.Circle(centerX, centerY, radius, "F")
+
+		// Score text
+		pdf.SetFont("Helvetica", "B", 28)
+		pdf.SetTextColor(255, 255, 255)
+		pdf.SetXY(centerX-radius, centerY-8)
+		pdf.CellFormat(radius*2, 16, fmt.Sprintf("%d%%", score), "", 1, "C", false, 0, "")
+
+		// Label
+		pdf.SetFont("Helvetica", "", 10)
+		pdf.SetTextColor(255, 255, 255)
+		pdf.SetXY(centerX-radius, centerY+5)
+		pdf.CellFormat(radius*2, 6, "Overall Score", "", 1, "C", false, 0, "")
+
+		pdf.SetY(centerY + radius + 10)
+	}
+
+	// Summary counts on cover
+	summary := assessment.Status.Summary
+	pdf.SetY(pdf.GetY() + 5)
+	boxWidth := 35.0
+	totalWidth := boxWidth*4 + 5*3
+	startX := (210 - totalWidth) / 2
+	y := pdf.GetY()
+
+	summaryItems := []struct {
+		label string
+		count int
+		color []int
+	}{
+		{"PASS", summary.PassCount, colorPass},
+		{"WARN", summary.WarnCount, colorWarn},
+		{"FAIL", summary.FailCount, colorFail},
+		{"INFO", summary.InfoCount, colorInfo},
+	}
+
+	for i, item := range summaryItems {
+		x := startX + float64(i)*(boxWidth+5)
+		pdf.SetFillColor(item.color[0], item.color[1], item.color[2])
+		pdf.RoundedRect(x, y, boxWidth, 18, 3, "1234", "F")
+
+		pdf.SetFont("Helvetica", "B", 14)
+		pdf.SetTextColor(255, 255, 255)
+		pdf.SetXY(x, y+1)
+		pdf.CellFormat(boxWidth, 10, fmt.Sprintf("%d", item.count), "", 0, "C", false, 0, "")
+
+		pdf.SetFont("Helvetica", "", 8)
+		pdf.SetXY(x, y+11)
+		pdf.CellFormat(boxWidth, 6, item.label, "", 0, "C", false, 0, "")
+	}
+
+	// Profile used
+	pdf.SetY(y + 30)
+	pdf.SetFont("Helvetica", "", 10)
+	pdf.SetTextColor(120, 120, 120)
+	profileUsed := assessment.Status.Summary.ProfileUsed
+	if profileUsed == "" {
+		profileUsed = assessment.Spec.Profile
+	}
+	pdf.CellFormat(0, 6, fmt.Sprintf("Profile: %s  |  Total Checks: %d", profileUsed, summary.TotalChecks), "", 1, "C", false, 0, "")
+
+	// Bottom accent bar
+	pdf.SetFillColor(0, 51, 102)
+	pdf.Rect(0, 289, 210, 8, "F")
 }
 
 func addSectionTitle(pdf *gofpdf.Fpdf, title string) {
@@ -108,6 +282,11 @@ func addClusterInfoTable(pdf *gofpdf.Fpdf, assessment *assessmentv1alpha1.Cluste
 	colWidth := 85.0
 	rowHeight := 7.0
 
+	profileUsed := assessment.Status.Summary.ProfileUsed
+	if profileUsed == "" {
+		profileUsed = assessment.Spec.Profile
+	}
+
 	rows := [][]string{
 		{"Cluster ID:", info.ClusterID},
 		{"OpenShift Version:", info.ClusterVersion},
@@ -116,7 +295,7 @@ func addClusterInfoTable(pdf *gofpdf.Fpdf, assessment *assessmentv1alpha1.Cluste
 		{"Total Nodes:", fmt.Sprintf("%d", info.NodeCount)},
 		{"Control Plane Nodes:", fmt.Sprintf("%d", info.ControlPlaneNodes)},
 		{"Worker Nodes:", fmt.Sprintf("%d", info.WorkerNodes)},
-		{"Assessment Profile:", assessment.Spec.Profile},
+		{"Assessment Profile:", profileUsed},
 	}
 
 	for _, row := range rows {
@@ -133,7 +312,7 @@ func addSummarySection(pdf *gofpdf.Fpdf, assessment *assessmentv1alpha1.ClusterA
 	// Summary boxes
 	boxWidth := 40.0
 	boxHeight := 20.0
-	startX := 15.0
+	startX := leftMargin
 	y := pdf.GetY()
 
 	summaryItems := []struct {
@@ -192,13 +371,13 @@ func addScoreVisualization(pdf *gofpdf.Fpdf, score int) {
 
 	// Progress bar fill
 	fillWidth := barWidth * float64(score) / 100.0
-	if score >= 80 {
-		pdf.SetFillColor(colorPass[0], colorPass[1], colorPass[2])
-	} else if score >= 60 {
-		pdf.SetFillColor(colorWarn[0], colorWarn[1], colorWarn[2])
-	} else {
-		pdf.SetFillColor(colorFail[0], colorFail[1], colorFail[2])
+	color := colorForStatus(assessmentv1alpha1.FindingStatusPass)
+	if score < 60 {
+		color = colorForStatus(assessmentv1alpha1.FindingStatusFail)
+	} else if score < 80 {
+		color = colorForStatus(assessmentv1alpha1.FindingStatusWarn)
 	}
+	pdf.SetFillColor(color[0], color[1], color[2])
 	if fillWidth > 0 {
 		pdf.RoundedRect(barX, y, fillWidth, barHeight, 2, "1234", "F")
 	}
@@ -212,38 +391,226 @@ func addScoreVisualization(pdf *gofpdf.Fpdf, score int) {
 	pdf.SetY(y + barHeight + 2)
 }
 
-func addFindingsByCategory(pdf *gofpdf.Fpdf, assessment *assessmentv1alpha1.ClusterAssessment) {
-	// Group findings by category
-	categories := make(map[string][]assessmentv1alpha1.Finding)
-	for _, f := range assessment.Status.Findings {
-		categories[f.Category] = append(categories[f.Category], f)
+// addDeltaSection renders a section showing changes since the last assessment run.
+func addDeltaSection(pdf *gofpdf.Fpdf, assessment *assessmentv1alpha1.ClusterAssessment) {
+	delta := assessment.Status.Delta
+	if delta == nil {
+		return
 	}
 
-	pdf.SetFont("Helvetica", "", 10)
+	addSectionTitle(pdf, "Changes Since Last Run")
+
+	y := pdf.GetY()
+
+	// Score delta
+	if delta.ScoreDelta != nil && *delta.ScoreDelta != 0 {
+		pdf.SetFont("Helvetica", "B", 12)
+		scoreDelta := *delta.ScoreDelta
+		if scoreDelta > 0 {
+			pdf.SetTextColor(colorPass[0], colorPass[1], colorPass[2])
+			pdf.CellFormat(0, 8, fmt.Sprintf("Score: +%d points (improved)", scoreDelta), "", 1, "L", false, 0, "")
+		} else {
+			pdf.SetTextColor(colorFail[0], colorFail[1], colorFail[2])
+			pdf.CellFormat(0, 8, fmt.Sprintf("Score: %d points (regressed)", scoreDelta), "", 1, "L", false, 0, "")
+		}
+		pdf.Ln(3)
+	}
+
+	// Delta summary boxes
+	type deltaItem struct {
+		label string
+		items []string
+		color []int
+		icon  string
+	}
+
+	deltaItems := []deltaItem{
+		{"New Issues", delta.NewFindings, colorFail, "+"},
+		{"Resolved", delta.ResolvedFindings, colorPass, "-"},
+		{"Regressions", delta.RegressionFindings, colorWarn, "!"},
+		{"Improved", delta.ImprovedFindings, colorInfo, "*"},
+	}
+
+	// Summary row
+	boxWidth := 42.0
+	boxHeight := 14.0
+	y = pdf.GetY()
+	for i, item := range deltaItems {
+		x := leftMargin + float64(i)*(boxWidth+3)
+
+		// Light background with colored left border
+		pdf.SetFillColor(248, 248, 250)
+		pdf.RoundedRect(x, y, boxWidth, boxHeight, 2, "1234", "F")
+		pdf.SetFillColor(item.color[0], item.color[1], item.color[2])
+		pdf.Rect(x, y, 3, boxHeight, "F")
+
+		// Count
+		pdf.SetFont("Helvetica", "B", 12)
+		pdf.SetTextColor(item.color[0], item.color[1], item.color[2])
+		pdf.SetXY(x+5, y+1)
+		pdf.CellFormat(15, 6, fmt.Sprintf("%s%d", item.icon, len(item.items)), "", 0, "L", false, 0, "")
+
+		// Label
+		pdf.SetFont("Helvetica", "", 7)
+		pdf.SetTextColor(80, 80, 80)
+		pdf.SetXY(x+5, y+7)
+		pdf.CellFormat(boxWidth-5, 5, item.label, "", 0, "L", false, 0, "")
+	}
+
+	pdf.SetY(y + boxHeight + 4)
+
+	// List finding IDs if any
+	pdf.SetTextColor(0, 0, 0)
+	for _, item := range deltaItems {
+		if len(item.items) == 0 {
+			continue
+		}
+		pdf.SetFont("Helvetica", "B", 8)
+		pdf.SetTextColor(item.color[0], item.color[1], item.color[2])
+		pdf.CellFormat(0, 5, fmt.Sprintf("%s:", item.label), "", 1, "L", false, 0, "")
+
+		pdf.SetFont("Helvetica", "", 7)
+		pdf.SetTextColor(80, 80, 80)
+		// Show up to 10 finding IDs per line
+		for i := 0; i < len(item.items); i += 10 {
+			end := i + 10
+			if end > len(item.items) {
+				end = len(item.items)
+			}
+			line := strings.Join(item.items[i:end], ", ")
+			pdf.CellFormat(0, 4, "  "+line, "", 1, "L", false, 0, "")
+		}
+		pdf.Ln(1)
+	}
+}
+
+// addCategoryBarChart renders a horizontal stacked bar chart for each category.
+func addCategoryBarChart(pdf *gofpdf.Fpdf, assessment *assessmentv1alpha1.ClusterAssessment) {
+	// Group findings by category
+	type categoryCounts struct {
+		pass, warn, fail, info int
+		total                  int
+	}
+	categories := make(map[string]*categoryCounts)
+	for _, f := range assessment.Status.Findings {
+		c, ok := categories[f.Category]
+		if !ok {
+			c = &categoryCounts{}
+			categories[f.Category] = c
+		}
+		c.total++
+		switch f.Status {
+		case assessmentv1alpha1.FindingStatusPass:
+			c.pass++
+		case assessmentv1alpha1.FindingStatusWarn:
+			c.warn++
+		case assessmentv1alpha1.FindingStatusFail:
+			c.fail++
+		case assessmentv1alpha1.FindingStatusInfo:
+			c.info++
+		}
+	}
+
+	// Sort category names for deterministic output
+	sortedNames := make([]string, 0, len(categories))
+	for name := range categories {
+		sortedNames = append(sortedNames, name)
+	}
+	sort.Strings(sortedNames)
+
+	// Find max total for scaling
+	maxTotal := 0
+	for _, c := range categories {
+		if c.total > maxTotal {
+			maxTotal = c.total
+		}
+	}
+	if maxTotal == 0 {
+		return
+	}
+
+	labelWidth := 55.0
+	barMaxWidth := pageContentWidth - labelWidth - 30 // leave room for count label
+	rowHeight := 10.0
+
+	pdf.SetFont("Helvetica", "", 9)
 	pdf.SetTextColor(0, 0, 0)
 
-	for category, findings := range categories {
-		pass, warn, fail, info := 0, 0, 0, 0
-		for _, f := range findings {
-			switch f.Status {
-			case assessmentv1alpha1.FindingStatusPass:
-				pass++
-			case assessmentv1alpha1.FindingStatusWarn:
-				warn++
-			case assessmentv1alpha1.FindingStatusFail:
-				fail++
-			case assessmentv1alpha1.FindingStatusInfo:
-				info++
-			}
+	for _, name := range sortedNames {
+		c := categories[name]
+
+		if pdf.GetY() > 260 {
+			pdf.AddPage()
 		}
 
-		pdf.SetFont("Helvetica", "B", 10)
-		pdf.CellFormat(50, 6, category+":", "", 0, "L", false, 0, "")
-		pdf.SetFont("Helvetica", "", 10)
+		y := pdf.GetY()
 
-		statusStr := fmt.Sprintf("%d pass, %d warn, %d fail, %d info", pass, warn, fail, info)
-		pdf.CellFormat(0, 6, statusStr, "", 1, "L", false, 0, "")
+		// Category label
+		pdf.SetFont("Helvetica", "B", 9)
+		pdf.SetTextColor(50, 50, 50)
+		pdf.SetXY(leftMargin, y)
+		pdf.CellFormat(labelWidth, rowHeight, name, "", 0, "R", false, 0, "")
+
+		// Stacked bar
+		barX := leftMargin + labelWidth + 3
+		scale := barMaxWidth / float64(maxTotal)
+
+		segments := []struct {
+			count int
+			color []int
+		}{
+			{c.fail, colorFail},
+			{c.warn, colorWarn},
+			{c.info, colorInfo},
+			{c.pass, colorPass},
+		}
+
+		currentX := barX
+		for _, seg := range segments {
+			if seg.count == 0 {
+				continue
+			}
+			segWidth := float64(seg.count) * scale
+			if segWidth < 1 {
+				segWidth = 1
+			}
+			pdf.SetFillColor(seg.color[0], seg.color[1], seg.color[2])
+			pdf.Rect(currentX, y+1, segWidth, rowHeight-2, "F")
+			currentX += segWidth
+		}
+
+		// Total count label
+		pdf.SetFont("Helvetica", "", 8)
+		pdf.SetTextColor(100, 100, 100)
+		pdf.SetXY(currentX+2, y)
+		pdf.CellFormat(25, rowHeight, fmt.Sprintf("%d checks", c.total), "", 0, "L", false, 0, "")
+
+		pdf.SetY(y + rowHeight + 1)
 	}
+
+	// Legend
+	pdf.Ln(3)
+	legendY := pdf.GetY()
+	legendItems := []struct {
+		label string
+		color []int
+	}{
+		{"Fail", colorFail},
+		{"Warn", colorWarn},
+		{"Info", colorInfo},
+		{"Pass", colorPass},
+	}
+	legendX := leftMargin + labelWidth + 3
+	for _, item := range legendItems {
+		pdf.SetFillColor(item.color[0], item.color[1], item.color[2])
+		pdf.Rect(legendX, legendY+1, 6, 4, "F")
+		pdf.SetFont("Helvetica", "", 7)
+		pdf.SetTextColor(80, 80, 80)
+		pdf.SetXY(legendX+7, legendY)
+		pdf.CellFormat(20, 6, item.label, "", 0, "L", false, 0, "")
+		legendX += 28
+	}
+	pdf.SetY(legendY + 8)
 }
 
 func addDetailedFindings(pdf *gofpdf.Fpdf, assessment *assessmentv1alpha1.ClusterAssessment) {
@@ -255,7 +622,7 @@ func addDetailedFindings(pdf *gofpdf.Fpdf, assessment *assessmentv1alpha1.Cluste
 		assessmentv1alpha1.FindingStatusPass,
 	}
 
-	// Optimization: Group findings by status in a single pass (O(N)) instead of repeated filtering (O(4N))
+	// Group findings by status in a single pass
 	findingsByStatus := make(map[assessmentv1alpha1.FindingStatus][]assessmentv1alpha1.Finding)
 	for _, f := range assessment.Status.Findings {
 		findingsByStatus[f.Status] = append(findingsByStatus[f.Status], f)
@@ -278,23 +645,8 @@ func addDetailedFindings(pdf *gofpdf.Fpdf, assessment *assessmentv1alpha1.Cluste
 }
 
 func addStatusHeader(pdf *gofpdf.Fpdf, status assessmentv1alpha1.FindingStatus, count int) {
-	var color []int
-	var label string
-
-	switch status {
-	case assessmentv1alpha1.FindingStatusPass:
-		color = colorPass
-		label = "PASS"
-	case assessmentv1alpha1.FindingStatusWarn:
-		color = colorWarn
-		label = "WARNING"
-	case assessmentv1alpha1.FindingStatusFail:
-		color = colorFail
-		label = "FAILED"
-	case assessmentv1alpha1.FindingStatusInfo:
-		color = colorInfo
-		label = "INFO"
-	}
+	color := colorForStatus(status)
+	label := labelForStatus(status)
 
 	pdf.SetFont("Helvetica", "B", 12)
 	pdf.SetTextColor(color[0], color[1], color[2])
@@ -302,9 +654,73 @@ func addStatusHeader(pdf *gofpdf.Fpdf, status assessmentv1alpha1.FindingStatus, 
 	pdf.SetTextColor(0, 0, 0)
 }
 
+// addFindingCard renders a single finding card with dynamically calculated height.
 func addFindingCard(pdf *gofpdf.Fpdf, f assessmentv1alpha1.Finding) {
-	// Check if we need a new page
-	if pdf.GetY() > 250 {
+	// Calculate all content lines first to determine card height
+	title := f.Title
+	description := f.Description
+	hasRecommendation := (f.Status == assessmentv1alpha1.FindingStatusFail || f.Status == assessmentv1alpha1.FindingStatusWarn) && f.Recommendation != ""
+	hasRemediation := f.Remediation != nil && len(f.Remediation.Commands) > 0
+	hasReferences := len(f.References) > 0
+	hasImpact := f.Impact != ""
+	hasResource := f.Resource != ""
+
+	// Estimate card height dynamically
+	cardHeight := 8.0 // title line height
+
+	// Description height: estimate lines wrapped at ~165mm width with 8pt font
+	descLines := estimateWrappedLines(description, 165, 8)
+	cardHeight += float64(descLines) * 4.0
+
+	// Metadata line (category + validator + resource)
+	cardHeight += 5.0
+
+	// Impact
+	if hasImpact {
+		impactLines := estimateWrappedLines(f.Impact, 165, 8)
+		cardHeight += float64(impactLines)*4.0 + 3.0
+	}
+
+	// Recommendation
+	if hasRecommendation {
+		recLines := estimateWrappedLines("Recommendation: "+f.Recommendation, 176, 8)
+		cardHeight += float64(recLines)*4.0 + 6.0
+	}
+
+	// References
+	if hasReferences {
+		cardHeight += 5.0
+	}
+
+	// Remediation
+	remediationHeight := 0.0
+	if hasRemediation {
+		remediationHeight += 6.0 // safety label
+		if f.Remediation.EstimatedImpact != "" {
+			remediationHeight += 4.0
+		}
+		if len(f.Remediation.Prerequisites) > 0 {
+			remediationHeight += 5.0 + float64(len(f.Remediation.Prerequisites))*4.0
+		}
+		for _, cmd := range f.Remediation.Commands {
+			if cmd.Description != "" {
+				remediationHeight += 4.0
+			}
+			remediationHeight += 5.0 // command line
+		}
+		if f.Remediation.DocumentationURL != "" {
+			remediationHeight += 5.0
+		}
+		remediationHeight += 4.0 // padding
+	}
+
+	totalHeight := cardHeight + 6 // 6 for padding around card
+	if totalHeight < 28 {
+		totalHeight = 28
+	}
+
+	// Check if we need a new page (account for card + remediation)
+	if pdf.GetY()+totalHeight+remediationHeight > 270 {
 		pdf.AddPage()
 	}
 
@@ -312,120 +728,205 @@ func addFindingCard(pdf *gofpdf.Fpdf, f assessmentv1alpha1.Finding) {
 
 	// Card background
 	pdf.SetFillColor(248, 248, 250)
-	pdf.RoundedRect(15, startY, 180, 25, 2, "1234", "F")
+	pdf.RoundedRect(leftMargin, startY, pageContentWidth, totalHeight, 2, "1234", "F")
 
-	// Status badge
-	var color []int
-	switch f.Status {
-	case assessmentv1alpha1.FindingStatusPass:
-		color = colorPass
-	case assessmentv1alpha1.FindingStatusWarn:
-		color = colorWarn
-	case assessmentv1alpha1.FindingStatusFail:
-		color = colorFail
-	case assessmentv1alpha1.FindingStatusInfo:
-		color = colorInfo
-	}
-
+	// Status badge (colored indicator)
+	color := colorForStatus(f.Status)
 	pdf.SetFillColor(color[0], color[1], color[2])
-	pdf.RoundedRect(17, startY+2, 8, 8, 1, "1234", "F")
+	pdf.RoundedRect(leftMargin+2, startY+2, 8, 8, 1, "1234", "F")
 
 	// Title
-	pdf.SetXY(28, startY+2)
+	currentY := startY + 2
+	pdf.SetXY(leftMargin+13, currentY)
 	pdf.SetFont("Helvetica", "B", 10)
 	pdf.SetTextColor(0, 0, 0)
+	pdf.CellFormat(pageContentWidth-15, 5, title, "", 1, "L", false, 0, "")
+	currentY += 7
 
-	title := f.Title
-	if len(title) > 70 {
-		title = title[:67] + "..."
-	}
-	pdf.CellFormat(0, 5, title, "", 1, "L", false, 0, "")
-
-	// Description
-	pdf.SetXY(28, startY+8)
+	// Description (word-wrapped)
+	pdf.SetXY(leftMargin+13, currentY)
 	pdf.SetFont("Helvetica", "", 8)
 	pdf.SetTextColor(80, 80, 80)
+	pdf.MultiCell(pageContentWidth-15, 4, description, "", "L", false)
+	currentY = pdf.GetY() + 1
 
-	desc := f.Description
-	if len(desc) > 120 {
-		desc = desc[:117] + "..."
+	// Resource/Namespace (if present)
+	if hasResource {
+		pdf.SetXY(leftMargin+13, currentY)
+		pdf.SetFont("Helvetica", "", 7)
+		pdf.SetTextColor(100, 100, 100)
+		resourceStr := "Resource: " + f.Resource
+		if f.Namespace != "" {
+			resourceStr += " (ns: " + f.Namespace + ")"
+		}
+		pdf.CellFormat(0, 4, resourceStr, "", 1, "L", false, 0, "")
+		currentY += 5
 	}
-	pdf.MultiCell(165, 4, desc, "", "L", false)
 
 	// Category and Validator
-	pdf.SetXY(28, startY+18)
+	pdf.SetXY(leftMargin+13, currentY)
 	pdf.SetFont("Helvetica", "", 7)
 	pdf.SetTextColor(120, 120, 120)
-	pdf.CellFormat(0, 4, fmt.Sprintf("Category: %s | Validator: %s", f.Category, f.Validator), "", 1, "L", false, 0, "")
+	pdf.CellFormat(0, 4, fmt.Sprintf("Category: %s  |  Validator: %s", f.Category, f.Validator), "", 1, "L", false, 0, "")
+	currentY += 5
 
-	// Add recommendation if FAIL or WARN
-	if (f.Status == assessmentv1alpha1.FindingStatusFail || f.Status == assessmentv1alpha1.FindingStatusWarn) && f.Recommendation != "" {
-		pdf.SetY(startY + 25)
-		pdf.SetFillColor(255, 250, 240)
-		pdf.RoundedRect(15, pdf.GetY(), 180, 12, 2, "1234", "F")
-
-		pdf.SetXY(17, pdf.GetY()+2)
+	// Impact (if present)
+	if hasImpact {
+		pdf.SetXY(leftMargin+13, currentY)
 		pdf.SetFont("Helvetica", "I", 8)
-		pdf.SetTextColor(100, 80, 60)
-
-		rec := f.Recommendation
-		if len(rec) > 150 {
-			rec = rec[:147] + "..."
-		}
-		pdf.MultiCell(176, 4, "Recommendation: "+rec, "", "L", false)
-		pdf.Ln(2)
-	} else {
-		pdf.SetY(startY + 28)
+		pdf.SetTextColor(90, 70, 50)
+		pdf.MultiCell(pageContentWidth-15, 4, "Impact: "+f.Impact, "", "L", false)
+		currentY = pdf.GetY() + 1
 	}
 
-	// Add remediation commands if present
-	if f.Remediation != nil && len(f.Remediation.Commands) > 0 {
-		if pdf.GetY() > 250 {
-			pdf.AddPage()
-		}
+	// Set Y past the card
+	if currentY > startY+totalHeight {
+		pdf.SetY(currentY + 2)
+	} else {
+		pdf.SetY(startY + totalHeight + 2)
+	}
 
-		// Safety label
+	// Recommendation box (outside main card)
+	if hasRecommendation {
+		recY := pdf.GetY()
+		pdf.SetFillColor(255, 250, 240)
+		pdf.SetXY(leftMargin+5, recY)
+		pdf.SetFont("Helvetica", "I", 8)
+		pdf.SetTextColor(100, 80, 60)
+		pdf.MultiCell(pageContentWidth-10, 4, "Recommendation: "+f.Recommendation, "", "L", false)
+		recEndY := pdf.GetY()
+		// Draw background behind the recommendation (go back and fill)
+		pdf.SetFillColor(255, 250, 240)
+		pdf.RoundedRect(leftMargin, recY-1, pageContentWidth, recEndY-recY+2, 2, "1234", "F")
+		// Redraw text on top of background
+		pdf.SetXY(leftMargin+5, recY)
+		pdf.SetFont("Helvetica", "I", 8)
+		pdf.SetTextColor(100, 80, 60)
+		pdf.MultiCell(pageContentWidth-10, 4, "Recommendation: "+f.Recommendation, "", "L", false)
+		pdf.Ln(1)
+	}
+
+	// References
+	if hasReferences {
+		pdf.SetFont("Helvetica", "", 7)
+		pdf.SetTextColor(70, 130, 180)
+		refs := make([]string, 0, len(f.References))
+		for _, ref := range f.References {
+			if len(ref) > 80 {
+				refs = append(refs, ref[:77]+"...")
+			} else {
+				refs = append(refs, ref)
+			}
+		}
+		pdf.CellFormat(0, 4, "Refs: "+strings.Join(refs, " | "), "", 1, "L", false, 0, "")
+		pdf.Ln(1)
+	}
+
+	// Remediation section
+	if hasRemediation {
+		addRemediationBlock(pdf, f.Remediation)
+	}
+
+	pdf.Ln(3)
+}
+
+// addRemediationBlock renders the structured remediation guidance for a finding.
+func addRemediationBlock(pdf *gofpdf.Fpdf, rem *assessmentv1alpha1.RemediationGuidance) {
+	if pdf.GetY() > 255 {
+		pdf.AddPage()
+	}
+
+	// Safety label
+	pdf.SetFont("Helvetica", "B", 8)
+	safetyColor := colorForStatus(assessmentv1alpha1.FindingStatusInfo)
+	switch rem.Safety {
+	case assessmentv1alpha1.RemediationSafeApply:
+		safetyColor = colorPass
+	case assessmentv1alpha1.RemediationRequiresReview:
+		safetyColor = colorWarn
+	case assessmentv1alpha1.RemediationDestructive:
+		safetyColor = colorFail
+	}
+	pdf.SetTextColor(safetyColor[0], safetyColor[1], safetyColor[2])
+	pdf.CellFormat(0, 4, fmt.Sprintf("Remediation [%s]:", rem.Safety), "", 1, "L", false, 0, "")
+
+	// Estimated impact
+	if rem.EstimatedImpact != "" {
+		pdf.SetFont("Helvetica", "", 7)
+		pdf.SetTextColor(80, 80, 80)
+		pdf.CellFormat(0, 4, "  Impact: "+rem.EstimatedImpact, "", 1, "L", false, 0, "")
+	}
+
+	// Prerequisites
+	if len(rem.Prerequisites) > 0 {
 		pdf.SetFont("Helvetica", "B", 7)
-		var safetyColor []int
-		switch f.Remediation.Safety {
-		case assessmentv1alpha1.RemediationSafeApply:
-			safetyColor = colorPass
-		case assessmentv1alpha1.RemediationRequiresReview:
-			safetyColor = colorWarn
-		case assessmentv1alpha1.RemediationDestructive:
-			safetyColor = colorFail
-		default:
-			safetyColor = colorInfo
-		}
-		pdf.SetTextColor(safetyColor[0], safetyColor[1], safetyColor[2])
-		pdf.CellFormat(0, 4, fmt.Sprintf("Remediation [%s]:", f.Remediation.Safety), "", 1, "L", false, 0, "")
-
-		// Commands
-		for _, cmd := range f.Remediation.Commands {
+		pdf.SetTextColor(80, 80, 80)
+		pdf.CellFormat(0, 4, "  Prerequisites:", "", 1, "L", false, 0, "")
+		pdf.SetFont("Helvetica", "", 7)
+		for _, prereq := range rem.Prerequisites {
 			if pdf.GetY() > 270 {
 				pdf.AddPage()
 			}
-			pdf.SetFont("Helvetica", "", 7)
-			pdf.SetTextColor(80, 80, 80)
-			if cmd.Description != "" {
-				prefix := ""
-				if cmd.RequiresConfirmation {
-					prefix = "[!] "
-				}
-				pdf.CellFormat(0, 3, prefix+cmd.Description, "", 1, "L", false, 0, "")
-			}
-			pdf.SetFont("Courier", "", 7)
-			pdf.SetTextColor(0, 0, 0)
-			cmdText := cmd.Command
-			if len(cmdText) > 120 {
-				cmdText = cmdText[:117] + "..."
-			}
-			pdf.CellFormat(0, 3, "  $ "+cmdText, "", 1, "L", false, 0, "")
-			pdf.Ln(1)
+			pdf.CellFormat(0, 4, "    - "+prereq, "", 1, "L", false, 0, "")
 		}
 	}
 
-	pdf.Ln(2)
+	// Commands
+	for _, cmd := range rem.Commands {
+		if pdf.GetY() > 270 {
+			pdf.AddPage()
+		}
+		pdf.SetFont("Helvetica", "", 7)
+		pdf.SetTextColor(80, 80, 80)
+		if cmd.Description != "" {
+			prefix := ""
+			if cmd.RequiresConfirmation {
+				prefix = "[!] "
+			}
+			pdf.CellFormat(0, 3, "  "+prefix+cmd.Description, "", 1, "L", false, 0, "")
+		}
+
+		// Command in monospace with background
+		cmdY := pdf.GetY()
+		pdf.SetFillColor(40, 40, 50)
+		pdf.Rect(leftMargin+5, cmdY, pageContentWidth-10, 5, "F")
+		pdf.SetFont("Courier", "", 7)
+		pdf.SetTextColor(200, 210, 220)
+		pdf.SetXY(leftMargin+7, cmdY+1)
+		pdf.CellFormat(pageContentWidth-14, 3, "$ "+cmd.Command, "", 1, "L", false, 0, "")
+		pdf.SetY(cmdY + 6)
+	}
+
+	// Documentation URL
+	if rem.DocumentationURL != "" {
+		pdf.SetFont("Helvetica", "", 7)
+		pdf.SetTextColor(70, 130, 180)
+		docURL := rem.DocumentationURL
+		if len(docURL) > 90 {
+			docURL = docURL[:87] + "..."
+		}
+		pdf.CellFormat(0, 4, "  Docs: "+docURL, "", 1, "L", false, 0, "")
+	}
+
+	pdf.Ln(1)
+}
+
+// estimateWrappedLines estimates how many lines text will take when wrapped at a given width.
+func estimateWrappedLines(text string, widthMM float64, fontSizePt float64) int {
+	if text == "" {
+		return 0
+	}
+	// Approximate: Helvetica 8pt ≈ 2.1mm per char, 10pt ≈ 2.6mm per char
+	charWidth := fontSizePt * 0.26 // rough mm per char
+	charsPerLine := int(widthMM / charWidth)
+	if charsPerLine < 1 {
+		charsPerLine = 1
+	}
+	lines := (len(text) + charsPerLine - 1) / charsPerLine
+	if lines < 1 {
+		lines = 1
+	}
+	return lines
 }
 
 // GenerateHTML creates an HTML report that can be easily converted to PDF.
@@ -457,6 +958,7 @@ func GenerateHTML(assessment *assessmentv1alpha1.ClusterAssessment) ([]byte, err
         .finding-title { font-weight: bold; margin-bottom: 5px; }
         .finding-desc { color: #555; margin-bottom: 5px; }
         .finding-meta { font-size: 11px; color: #888; }
+        .finding-impact { color: #6a4f2e; font-style: italic; margin-top: 5px; padding: 6px 10px; background: #fef9f0; border-radius: 3px; }
         .recommendation { background: #fffaef; padding: 10px; margin-top: 10px; border-radius: 3px; font-style: italic; }
         .remediation { background: #f0f4f8; padding: 12px; margin-top: 8px; border-radius: 5px; border: 1px solid #d0d7de; }
         .remediation-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
@@ -475,6 +977,14 @@ func GenerateHTML(assessment *assessmentv1alpha1.ClusterAssessment) ([]byte, err
         .info-table td:first-child { font-weight: bold; width: 200px; }
         .score-bar { background: #ddd; height: 30px; border-radius: 15px; overflow: hidden; margin: 10px 0; }
         .score-fill { height: 100%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; }
+        .delta-section { background: #f8f9fa; border: 1px solid #e1e4e8; border-radius: 8px; padding: 15px; margin: 15px 0; }
+        .delta-box { display: inline-block; padding: 8px 16px; margin: 4px; border-radius: 6px; border-left: 4px solid; background: #fff; }
+        .delta-box.new { border-left-color: #DC143C; }
+        .delta-box.resolved { border-left-color: #228B22; }
+        .delta-box.regression { border-left-color: #FFA500; }
+        .delta-box.improved { border-left-color: #4682B4; }
+        .delta-count { font-size: 18px; font-weight: bold; }
+        .delta-label { font-size: 11px; color: #666; }
     </style>
 </head>
 <body>
@@ -497,7 +1007,11 @@ func GenerateHTML(assessment *assessmentv1alpha1.ClusterAssessment) ([]byte, err
 	buf.WriteString(fmt.Sprintf(`<tr><td>Total Nodes</td><td>%d</td></tr>`, info.NodeCount))
 	buf.WriteString(fmt.Sprintf(`<tr><td>Control Plane Nodes</td><td>%d</td></tr>`, info.ControlPlaneNodes))
 	buf.WriteString(fmt.Sprintf(`<tr><td>Worker Nodes</td><td>%d</td></tr>`, info.WorkerNodes))
-	buf.WriteString(fmt.Sprintf(`<tr><td>Assessment Profile</td><td>%s</td></tr>`, html.EscapeString(assessment.Spec.Profile)))
+	profileUsed := assessment.Status.Summary.ProfileUsed
+	if profileUsed == "" {
+		profileUsed = assessment.Spec.Profile
+	}
+	buf.WriteString(fmt.Sprintf(`<tr><td>Assessment Profile</td><td>%s</td></tr>`, html.EscapeString(profileUsed)))
 	buf.WriteString(`</table>`)
 
 	// Summary
@@ -522,6 +1036,24 @@ func GenerateHTML(assessment *assessmentv1alpha1.ClusterAssessment) ([]byte, err
 		buf.WriteString(fmt.Sprintf(`<div class="score-bar"><div class="score-fill" style="width: %d%%; background: %s;">%d%%</div></div>`, *summary.Score, scoreColor, *summary.Score))
 	}
 
+	// Delta section in HTML
+	if assessment.Status.Delta != nil {
+		delta := assessment.Status.Delta
+		buf.WriteString(`<h2>Changes Since Last Run</h2><div class="delta-section">`)
+		if delta.ScoreDelta != nil && *delta.ScoreDelta != 0 {
+			if *delta.ScoreDelta > 0 {
+				buf.WriteString(fmt.Sprintf(`<p style="color: #228B22; font-weight: bold;">Score: +%d points (improved)</p>`, *delta.ScoreDelta))
+			} else {
+				buf.WriteString(fmt.Sprintf(`<p style="color: #DC143C; font-weight: bold;">Score: %d points (regressed)</p>`, *delta.ScoreDelta))
+			}
+		}
+		buf.WriteString(fmt.Sprintf(`<div class="delta-box new"><div class="delta-count">%d</div><div class="delta-label">New Issues</div></div>`, len(delta.NewFindings)))
+		buf.WriteString(fmt.Sprintf(`<div class="delta-box resolved"><div class="delta-count">%d</div><div class="delta-label">Resolved</div></div>`, len(delta.ResolvedFindings)))
+		buf.WriteString(fmt.Sprintf(`<div class="delta-box regression"><div class="delta-count">%d</div><div class="delta-label">Regressions</div></div>`, len(delta.RegressionFindings)))
+		buf.WriteString(fmt.Sprintf(`<div class="delta-box improved"><div class="delta-count">%d</div><div class="delta-label">Improved</div></div>`, len(delta.ImprovedFindings)))
+		buf.WriteString(`</div>`)
+	}
+
 	// Detailed Findings
 	buf.WriteString(`<h2>Detailed Findings</h2>`)
 
@@ -543,7 +1075,23 @@ func GenerateHTML(assessment *assessmentv1alpha1.ClusterAssessment) ([]byte, err
 			buf.WriteString(fmt.Sprintf(`<div class="finding status-%s">`, f.Status))
 			buf.WriteString(fmt.Sprintf(`<div class="finding-title">[%s] %s</div>`, f.Status, html.EscapeString(f.Title)))
 			buf.WriteString(fmt.Sprintf(`<div class="finding-desc">%s</div>`, html.EscapeString(f.Description)))
+
+			// Resource/Namespace
+			if f.Resource != "" {
+				resourceStr := f.Resource
+				if f.Namespace != "" {
+					resourceStr += " (ns: " + f.Namespace + ")"
+				}
+				buf.WriteString(fmt.Sprintf(`<div class="finding-meta">Resource: %s</div>`, html.EscapeString(resourceStr)))
+			}
+
 			buf.WriteString(fmt.Sprintf(`<div class="finding-meta">Category: %s | Validator: %s</div>`, html.EscapeString(f.Category), html.EscapeString(f.Validator)))
+
+			// Impact
+			if f.Impact != "" {
+				buf.WriteString(fmt.Sprintf(`<div class="finding-impact">Impact: %s</div>`, html.EscapeString(f.Impact)))
+			}
+
 			if f.Recommendation != "" && (f.Status == assessmentv1alpha1.FindingStatusFail || f.Status == assessmentv1alpha1.FindingStatusWarn) {
 				buf.WriteString(fmt.Sprintf(`<div class="recommendation">💡 %s</div>`, html.EscapeString(f.Recommendation)))
 			}
