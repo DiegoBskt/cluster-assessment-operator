@@ -533,13 +533,19 @@ func addCategoryBarChart(pdf *gofpdf.Fpdf, assessment *assessmentv1alpha1.Cluste
 	barMaxWidth := pageContentWidth - labelWidth - 30 // leave room for count label
 	rowHeight := 10.0
 
+	// Disable auto page break for the entire chart+legend section.
+	// gofpdf auto-pagination only triggers on CellFormat, not Rect, which causes
+	// bars and labels to scatter across different pages when near the bottom.
+	pdf.SetAutoPageBreak(false, 0)
+
 	pdf.SetFont("Helvetica", "", 9)
 	pdf.SetTextColor(0, 0, 0)
 
 	for _, name := range sortedNames {
 		c := categories[name]
 
-		if pdf.GetY() > 260 {
+		// Manual page break check: need rowHeight + spacing
+		if pdf.GetY()+rowHeight+2 > 280 {
 			pdf.AddPage()
 		}
 
@@ -588,8 +594,11 @@ func addCategoryBarChart(pdf *gofpdf.Fpdf, assessment *assessmentv1alpha1.Cluste
 		pdf.SetY(y + rowHeight + 1)
 	}
 
-	// Legend
+	// Legend — manual page check to keep all 4 items on one line
 	pdf.Ln(3)
+	if pdf.GetY()+10 > 280 {
+		pdf.AddPage()
+	}
 	legendY := pdf.GetY()
 	legendItems := []struct {
 		label string
@@ -611,6 +620,9 @@ func addCategoryBarChart(pdf *gofpdf.Fpdf, assessment *assessmentv1alpha1.Cluste
 		legendX += 28
 	}
 	pdf.SetY(legendY + 8)
+
+	// Re-enable auto page break for subsequent content
+	pdf.SetAutoPageBreak(true, 15)
 }
 
 func addDetailedFindings(pdf *gofpdf.Fpdf, assessment *assessmentv1alpha1.ClusterAssessment) {
