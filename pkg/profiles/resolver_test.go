@@ -78,7 +78,7 @@ func TestMergeProfile_BasedOnDevelopment(t *testing.T) {
 func TestMergeProfile_DefaultsToProductionBase(t *testing.T) {
 	custom := &assessmentv1alpha1.AssessmentProfile{
 		ObjectMeta: metav1.ObjectMeta{Name: "no-base"},
-		Spec: assessmentv1alpha1.AssessmentProfileSpec{
+		Spec:       assessmentv1alpha1.AssessmentProfileSpec{
 			// BasedOn is empty
 		},
 	}

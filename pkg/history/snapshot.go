@@ -75,9 +75,9 @@ func (m *SnapshotManager) CreateSnapshot(ctx context.Context, assessment *assess
 		ObjectMeta: metav1.ObjectMeta{
 			Name: snapshotName,
 			Labels: map[string]string{
-				LabelAssessmentName:                assessment.Name,
-				"app.kubernetes.io/managed-by":     "cluster-assessment-operator",
-				"app.kubernetes.io/name":           "cluster-assessment-operator",
+				LabelAssessmentName:            assessment.Name,
+				"app.kubernetes.io/managed-by": "cluster-assessment-operator",
+				"app.kubernetes.io/name":       "cluster-assessment-operator",
 			},
 		},
 		Spec: assessmentv1alpha1.AssessmentSnapshotSpec{

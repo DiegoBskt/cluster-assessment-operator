@@ -1,0 +1,238 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.20.0
+  name: assessmentsnapshots.assessment.openshift.io
+spec:
+  group: assessment.openshift.io
+  names:
+    kind: AssessmentSnapshot
+    listKind: AssessmentSnapshotList
+    plural: assessmentsnapshots
+    shortNames:
+    - as
+    singular: assessmentsnapshot
+  scope: Cluster
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.assessmentName
+      name: Assessment
+      type: string
+    - jsonPath: .status.summary.score
+      name: Score
+      type: integer
+    - jsonPath: .status.summary.passCount
+      name: Pass
+      type: integer
+    - jsonPath: .status.summary.warnCount
+      name: Warn
+      type: integer
+    - jsonPath: .status.summary.failCount
+      name: Fail
+      type: integer
+    - jsonPath: .status.runTime
+      name: Run Time
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: |-
+          AssessmentSnapshot is a point-in-time record of an assessment run,
+          used for historical tracking and trend analysis.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: AssessmentSnapshotSpec identifies which assessment produced
+              this snapshot.
+            properties:
+              assessmentName:
+                description: AssessmentName is the name of the source ClusterAssessment.
+                type: string
+              profile:
+                description: Profile is the profile name used for this run.
+                type: string
+            required:
+            - assessmentName
+            - profile
+            type: object
+          status:
+            description: AssessmentSnapshotStatus holds the snapshot data captured
+              at assessment completion.
+            properties:
+              clusterInfo:
+                description: ClusterInfo is the cluster state at this point in time.
+                properties:
+                  channel:
+                    description: Channel is the update channel configured for the
+                      cluster.
+                    type: string
+                  clusterID:
+                    description: ClusterID is the unique identifier of the cluster.
+                    type: string
+                  clusterVersion:
+                    description: ClusterVersion is the current OpenShift version.
+                    type: string
+                  controlPlaneNodes:
+                    description: ControlPlaneNodes is the number of control plane
+                      nodes.
+                    type: integer
+                  nodeCount:
+                    description: NodeCount is the total number of nodes in the cluster.
+                    type: integer
+                  platform:
+                    description: Platform is the infrastructure platform (AWS, Azure,
+                      vSphere, etc.).
+                    type: string
+                  workerNodes:
+                    description: WorkerNodes is the number of worker nodes.
+                    type: integer
+                type: object
+              delta:
+                description: Delta summarizes changes from the previous snapshot.
+                properties:
+                  improvedFindings:
+                    description: ImprovedFindings are findings whose status improved
+                      (e.g., FAIL -> WARN or PASS).
+                    items:
+                      type: string
+                    type: array
+                  newFindings:
+                    description: NewFindings are finding IDs that appeared in this
+                      run but not the previous.
+                    items:
+                      type: string
+                    type: array
+                  regressionFindings:
+                    description: RegressionFindings are findings whose status worsened
+                      (e.g., WARN -> FAIL).
+                    items:
+                      type: string
+                    type: array
+                  resolvedFindings:
+                    description: ResolvedFindings are finding IDs from the previous
+                      run that are no longer present.
+                    items:
+                      type: string
+                    type: array
+                  scoreDelta:
+                    description: ScoreDelta is the score change from the previous
+                      run (positive = improved).
+                    type: integer
+                type: object
+              findings:
+                description: Findings is the compact list of findings.
+                items:
+                  description: |-
+                    FindingSnapshot is a compact representation of a finding for historical storage.
+                    It omits description/impact/recommendation to reduce etcd storage.
+                  properties:
+                    category:
+                      description: Category groups related findings.
+                      type: string
+                    id:
+                      description: ID is the unique identifier for this finding type.
+                      type: string
+                    namespace:
+                      description: Namespace is the namespace of the resource, if
+                        applicable.
+                      type: string
+                    resource:
+                      description: Resource is the name of the Kubernetes resource
+                        involved.
+                      type: string
+                    status:
+                      allOf:
+                      - enum:
+                        - PASS
+                        - WARN
+                        - FAIL
+                        - INFO
+                      - enum:
+                        - PASS
+                        - WARN
+                        - FAIL
+                        - INFO
+                      description: Status indicates the finding severity.
+                      type: string
+                    title:
+                      description: Title is a short, human-readable title.
+                      type: string
+                    validator:
+                      description: Validator is the name of the validator that produced
+                        this finding.
+                      type: string
+                  required:
+                  - category
+                  - id
+                  - status
+                  - title
+                  - validator
+                  type: object
+                type: array
+              previousSnapshotName:
+                description: PreviousSnapshotName links to the preceding snapshot
+                  for traversal.
+                type: string
+              runTime:
+                description: RunTime is when the assessment completed.
+                format: date-time
+                type: string
+              summary:
+                description: Summary is the assessment summary at this point in time.
+                properties:
+                  failCount:
+                    description: FailCount is the number of checks that failed.
+                    type: integer
+                  infoCount:
+                    description: InfoCount is the number of informational findings.
+                    type: integer
+                  passCount:
+                    description: PassCount is the number of checks that passed.
+                    type: integer
+                  profileUsed:
+                    description: ProfileUsed is the baseline profile that was used.
+                    type: string
+                  score:
+                    description: Score is an optional overall health/maturity score
+                      (0-100).
+                    type: integer
+                  totalChecks:
+                    description: TotalChecks is the total number of checks performed.
+                    type: integer
+                  warnCount:
+                    description: WarnCount is the number of checks with warnings.
+                    type: integer
+                required:
+                - failCount
+                - infoCount
+                - passCount
+                - totalChecks
+                - warnCount
+                type: object
+            required:
+            - runTime
+            - summary
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

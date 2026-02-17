@@ -19,12 +19,28 @@ metadata:
               }
             }
           }
+        },
+        {
+          "apiVersion": "assessment.openshift.io/v1alpha1",
+          "kind": "AssessmentProfile",
+          "metadata": {
+            "name": "financial-services"
+          },
+          "spec": {
+            "description": "Strict profile for financial services clusters",
+            "basedOn": "production",
+            "thresholds": {
+              "maxClusterAdminBindings": 2,
+              "requireNetworkPolicy": true,
+              "allowPrivilegedContainers": false
+            }
+          }
         }
       ]
     # OLM Best Practices annotations
     capabilities: Basic Install
     categories: Monitoring,Developer Tools
-    containerImage: ghcr.io/diegobskt/cluster-assessment-operator:v1.3.1
+    containerImage: ghcr.io/diegobskt/cluster-assessment-operator:v1.3.2
     createdAt: "2026-01-15T14:00:00Z"
     description: Read-only OpenShift cluster configuration assessment operator
     operators.operatorframework.io/builder: operator-sdk-v1.34.0
@@ -33,13 +49,13 @@ metadata:
     support: Community
     # Upgrade path configuration per OLM best practices:
     # - skipRange allows direct upgrades from older versions to this version
-    olm.skipRange: ">=1.0.0 <1.3.1"
+    olm.skipRange: ">=1.0.0 <1.3.2"
     # Multi-arch support annotations
     operatorframework.io/suggested-namespace: cluster-assessment-operator
     operatorframework.io/arch.amd64: supported
     operatorframework.io/arch.arm64: supported
     operatorframework.io/os.linux: supported
-  name: cluster-assessment-operator.v1.3.1
+  name: cluster-assessment-operator.v1.3.2
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -105,6 +121,16 @@ spec:
             path: summary.failCount
             x-descriptors:
               - urn:alm:descriptor:text
+      - description: AssessmentProfile defines a custom assessment profile with overridable thresholds and validator selections
+        displayName: Assessment Profile
+        kind: AssessmentProfile
+        name: assessmentprofiles.assessment.openshift.io
+        version: v1alpha1
+      - description: AssessmentSnapshot is a point-in-time record of an assessment run for historical tracking
+        displayName: Assessment Snapshot
+        kind: AssessmentSnapshot
+        name: assessmentsnapshots.assessment.openshift.io
+        version: v1alpha1
   description: |
     ## OpenShift Cluster Assessment Operator
 
@@ -296,6 +322,46 @@ spec:
                 - get
                 - patch
                 - update
+            - apiGroups:
+                - assessment.openshift.io
+              resources:
+                - assessmentprofiles
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - assessment.openshift.io
+              resources:
+                - assessmentprofiles/status
+              verbs:
+                - get
+                - patch
+                - update
+            - apiGroups:
+                - assessment.openshift.io
+              resources:
+                - assessmentsnapshots
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - assessment.openshift.io
+              resources:
+                - assessmentsnapshots/status
+              verbs:
+                - get
+                - patch
+                - update
           serviceAccountName: cluster-assessment-operator
       permissions:
         - rules:
@@ -348,7 +414,7 @@ spec:
               spec:
                 containers:
                   - name: manager
-                    image: ghcr.io/diegobskt/cluster-assessment-operator:v1.3.1
+                    image: ghcr.io/diegobskt/cluster-assessment-operator:v1.3.2
                     imagePullPolicy: IfNotPresent
                     command:
                       - /manager
@@ -410,7 +476,7 @@ spec:
               spec:
                 containers:
                   - name: plugin
-                    image: ghcr.io/diegobskt/cluster-assessment-operator-console:v1.3.1
+                    image: ghcr.io/diegobskt/cluster-assessment-operator-console:v1.3.2
                     imagePullPolicy: Always
                     ports:
                       - containerPort: 9001
@@ -485,6 +551,6 @@ spec:
   provider:
     name: Community
     url: https://github.com/diegobskt/cluster-assessment-operator
-  version: 1.3.1
+  version: 1.3.2
   # Replaces field - required for upgrade graph
-  replaces: cluster-assessment-operator.v1.3.0
+  replaces: cluster-assessment-operator.v1.3.1

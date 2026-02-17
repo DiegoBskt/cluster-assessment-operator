@@ -95,7 +95,7 @@ func TestValidateProfile_EmptyBasedOnDefaultsToProduction(t *testing.T) {
 
 	profile := &assessmentv1alpha1.AssessmentProfile{
 		ObjectMeta: metav1.ObjectMeta{Name: "test"},
-		Spec: assessmentv1alpha1.AssessmentProfileSpec{
+		Spec:       assessmentv1alpha1.AssessmentProfileSpec{
 			// BasedOn is empty - should default to production and be valid
 		},
 	}

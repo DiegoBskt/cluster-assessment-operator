@@ -280,9 +280,9 @@ func TestComputeDelta_NoChanges(t *testing.T) {
 
 func TestComputeDelta_MixedChanges(t *testing.T) {
 	current := []assessmentv1alpha1.FindingSnapshot{
-		{ID: "check-1", Status: assessmentv1alpha1.FindingStatusPass},  // improved (was WARN)
-		{ID: "check-2", Status: assessmentv1alpha1.FindingStatusFail},  // regressed (was WARN)
-		{ID: "check-4", Status: assessmentv1alpha1.FindingStatusInfo},  // new
+		{ID: "check-1", Status: assessmentv1alpha1.FindingStatusPass}, // improved (was WARN)
+		{ID: "check-2", Status: assessmentv1alpha1.FindingStatusFail}, // regressed (was WARN)
+		{ID: "check-4", Status: assessmentv1alpha1.FindingStatusInfo}, // new
 	}
 
 	previous := &assessmentv1alpha1.AssessmentSnapshot{
