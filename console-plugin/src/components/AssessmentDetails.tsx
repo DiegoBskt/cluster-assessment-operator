@@ -26,7 +26,7 @@ import {
     CheckCircleIcon,
     ExclamationTriangleIcon,
 } from '@patternfly/react-icons';
-import { useK8sWatchResource, k8sPatch } from '@openshift-console/dynamic-plugin-sdk';
+import { useK8sWatchResource } from '@openshift-console/dynamic-plugin-sdk';
 import { Link } from 'react-router-dom';
 import { ClusterAssessment } from '../types';
 import { ScoreGauge } from './ScoreGauge';
@@ -56,28 +56,30 @@ export default function AssessmentDetails() {
         setRerunStatus('running');
         setRerunError('');
         try {
-            await k8sPatch({
-                model: {
-                    apiGroup: 'assessment.openshift.io',
-                    apiVersion: 'v1alpha1',
-                    kind: 'ClusterAssessment',
-                    plural: 'clusterassessments',
-                    abbr: 'CA',
-                    label: 'ClusterAssessment',
-                    labelPlural: 'ClusterAssessments',
+            // Use direct fetch for merge patch — k8sPatch with JSON Patch can fail
+            // if the annotations key doesn't exist on the CR yet.
+            const url = `/api/kubernetes/apis/assessment.openshift.io/v1alpha1/clusterassessments/${name}`;
+            const response = await fetch(url, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/merge-patch+json',
                 },
-                resource: { metadata: { name } },
-                data: [
-                    {
-                        op: 'add',
-                        path: '/metadata/annotations/assessment.openshift.io~1trigger',
-                        value: 'run',
+                body: JSON.stringify({
+                    metadata: {
+                        annotations: {
+                            'assessment.openshift.io/trigger': 'run',
+                        },
                     },
-                ],
+                }),
             });
+            if (!response.ok) {
+                const text = await response.text();
+                throw new Error(`${response.status}: ${text}`);
+            }
             setRerunStatus('success');
             setTimeout(() => setRerunStatus('idle'), 3000);
         } catch (err) {
+            console.error('Re-run failed:', err);
             setRerunStatus('error');
             setRerunError(String(err));
         }
