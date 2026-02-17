@@ -18,13 +18,15 @@ import {
     Tabs,
     Tab,
     TabTitleText,
+    Button,
+    Alert,
 } from '@patternfly/react-core';
 import {
     ExclamationCircleIcon,
     CheckCircleIcon,
     ExclamationTriangleIcon,
 } from '@patternfly/react-icons';
-import { useK8sWatchResource } from '@openshift-console/dynamic-plugin-sdk';
+import { useK8sWatchResource, k8sPatch } from '@openshift-console/dynamic-plugin-sdk';
 import { Link } from 'react-router-dom';
 import { ClusterAssessment } from '../types';
 import { ScoreGauge } from './ScoreGauge';
@@ -46,6 +48,40 @@ const clusterAssessmentResource = (name: string) => ({
 export default function AssessmentDetails() {
     const { name } = useParams<{ name: string }>();
     const [activeTabKey, setActiveTabKey] = React.useState<string | number>(0);
+    const [rerunStatus, setRerunStatus] = React.useState<'idle' | 'running' | 'success' | 'error'>('idle');
+    const [rerunError, setRerunError] = React.useState<string>('');
+
+    const handleRerun = async () => {
+        if (!name) return;
+        setRerunStatus('running');
+        setRerunError('');
+        try {
+            await k8sPatch({
+                model: {
+                    apiGroup: 'assessment.openshift.io',
+                    apiVersion: 'v1alpha1',
+                    kind: 'ClusterAssessment',
+                    plural: 'clusterassessments',
+                    abbr: 'CA',
+                    label: 'ClusterAssessment',
+                    labelPlural: 'ClusterAssessments',
+                },
+                resource: { metadata: { name } },
+                data: [
+                    {
+                        op: 'add',
+                        path: '/metadata/annotations/assessment.openshift.io~1trigger',
+                        value: 'run',
+                    },
+                ],
+            });
+            setRerunStatus('success');
+            setTimeout(() => setRerunStatus('idle'), 3000);
+        } catch (err) {
+            setRerunStatus('error');
+            setRerunError(String(err));
+        }
+    };
 
     // Stable assessment data that only gets replaced with valid complete data.
     // This prevents the UI from going blank when the watch returns empty/stale data.
@@ -148,7 +184,22 @@ export default function AssessmentDetails() {
                             </FlexItem>
                         </Flex>
                     </SplitItem>
+                    <SplitItem>
+                        <Button
+                            variant="secondary"
+                            onClick={handleRerun}
+                            isLoading={rerunStatus === 'running'}
+                            isDisabled={rerunStatus === 'running' || assessment?.status?.phase === 'Running'}
+                        >
+                            {rerunStatus === 'success' ? 'Re-run Triggered!' : 'Re-run Assessment'}
+                        </Button>
+                    </SplitItem>
                 </Split>
+                {rerunStatus === 'error' && (
+                    <Alert variant="danger" title="Re-run failed" isInline style={{ marginTop: '8px' }}>
+                        {rerunError}
+                    </Alert>
+                )}
             </PageSection>
 
             {/* Cards Grid Section */}

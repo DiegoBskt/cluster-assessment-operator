@@ -62,6 +62,8 @@ type ClusterAssessmentReconciler struct {
 // +kubebuilder:rbac:groups=assessment.openshift.io,resources=clusterassessments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=assessment.openshift.io,resources=clusterassessments/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=assessment.openshift.io,resources=clusterassessments/finalizers,verbs=update
+// +kubebuilder:rbac:groups=assessment.openshift.io,resources=assessmentsnapshots,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=assessment.openshift.io,resources=assessmentsnapshots/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups="",resources=nodes;namespaces;pods;services;configmaps;secrets;persistentvolumes;persistentvolumeclaims;serviceaccounts,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=configmaps,verbs=create;update;patch;delete
 // +kubebuilder:rbac:groups=config.openshift.io,resources=*,verbs=get;list;watch
@@ -107,6 +109,25 @@ func (r *ClusterAssessmentReconciler) Reconcile(ctx context.Context, req ctrl.Re
 // reconcileOneTime handles one-time assessments.
 func (r *ClusterAssessmentReconciler) reconcileOneTime(ctx context.Context, assessment *assessmentv1alpha1.ClusterAssessment) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
+
+	// Check for re-run trigger annotation — allows manual re-execution of completed assessments.
+	// This creates a new snapshot each time, enabling the History & Trends feature.
+	const triggerAnnotation = "assessment.openshift.io/trigger"
+	if assessment.Annotations != nil && assessment.Annotations[triggerAnnotation] == "run" {
+		logger.Info("Re-run trigger detected, resetting assessment")
+		// Remove annotation and reset phase
+		delete(assessment.Annotations, triggerAnnotation)
+		if err := r.Update(ctx, assessment); err != nil {
+			return ctrl.Result{}, err
+		}
+		// Reset status phase so runAssessment proceeds
+		assessment.Status.Phase = ""
+		assessment.Status.Message = "Re-run triggered"
+		if err := r.Status().Update(ctx, assessment); err != nil {
+			return ctrl.Result{}, err
+		}
+		return ctrl.Result{Requeue: true}, nil
+	}
 
 	// Skip if already completed
 	if assessment.Status.Phase == assessmentv1alpha1.PhaseCompleted {

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.7] - 2026-02-17
+
+### Fixed
+- **History & Trends**: Added missing RBAC for `assessmentsnapshots` in ClusterRole
+- **History & Trends**: Added annotation-based re-run trigger (`assessment.openshift.io/trigger: run`) so completed assessments can be re-executed to create new snapshots
+
+### Added
+- **Console Plugin**: "Re-run Assessment" button in assessment details to trigger re-execution and build snapshot history
+
 ## [1.3.6] - 2026-02-17
 
 ### Fixed
@@ -422,6 +431,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date | Description |
 |---------|------|-------------|
+| 1.3.7 | 2026-02-17 | History & Trends fix: RBAC, re-run trigger, Re-run button |
 | 1.3.6 | 2026-02-17 | PDF category legend fix |
 | 1.3.5 | 2026-02-17 | PrometheusRule alerting, 5 new validators, finding suppression, PDF modal fix |
 | 1.3.1 | 2026-02-04 | Lint and type fixes |
@@ -441,7 +451,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 | 1.1.0 | 2026-01-15 | 6 new validators (18 total) |
 | 1.0.0 | 2026-01-14 | Initial release |
 
-[Unreleased]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.3.6...HEAD
+[Unreleased]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.3.7...HEAD
+[1.3.7]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.3.6...v1.3.7
 [1.3.6]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.3.5...v1.3.6
 [1.3.5]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.3.1...v1.3.5
 [1.3.1]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.3.0...v1.3.1
