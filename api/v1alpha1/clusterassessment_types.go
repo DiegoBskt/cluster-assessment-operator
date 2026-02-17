@@ -63,6 +63,12 @@ type ClusterAssessmentSpec struct {
 	// +kubebuilder:default=90
 	// +optional
 	HistoryLimit *int `json:"historyLimit,omitempty"`
+
+	// Suppressions lists finding IDs to suppress from scoring.
+	// Suppressed findings are still collected and visible in reports
+	// but marked as suppressed and excluded from score calculation.
+	// +optional
+	Suppressions []SuppressionRule `json:"suppressions,omitempty"`
 }
 
 // ReportStorageSpec configures report storage options
@@ -278,6 +284,15 @@ type Finding struct {
 	// Remediation provides structured guidance for resolving this finding.
 	// +optional
 	Remediation *RemediationGuidance `json:"remediation,omitempty"`
+
+	// Suppressed indicates this finding was matched by a suppression rule
+	// and is excluded from score calculation.
+	// +optional
+	Suppressed bool `json:"suppressed,omitempty"`
+
+	// SuppressionReason explains why this finding was suppressed.
+	// +optional
+	SuppressionReason string `json:"suppressionReason,omitempty"`
 }
 
 // RemediationSafety indicates the safety level of applying the remediation.
@@ -329,6 +344,20 @@ type RemediationCommand struct {
 	// and the user should confirm before executing.
 	// +optional
 	RequiresConfirmation bool `json:"requiresConfirmation,omitempty"`
+}
+
+// SuppressionRule defines a rule for suppressing specific findings.
+type SuppressionRule struct {
+	// FindingID is the ID of the finding to suppress.
+	FindingID string `json:"findingID"`
+
+	// Reason explains why this finding is being suppressed.
+	Reason string `json:"reason"`
+
+	// ExpiresAt is an optional expiration time for the suppression.
+	// After this time, the finding will no longer be suppressed.
+	// +optional
+	ExpiresAt *metav1.Time `json:"expiresAt,omitempty"`
 }
 
 // FindingStatus represents the status of a finding

@@ -2,300 +2,173 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: cluster-assessment-operator
+  name: manager-role
 rules:
-  # ClusterAssessment CRD management
-  - apiGroups:
-      - assessment.openshift.io
-    resources:
-      - clusterassessments
-    verbs:
-      - get
-      - list
-      - watch
-      - create
-      - update
-      - patch
-      - delete
-  - apiGroups:
-      - assessment.openshift.io
-    resources:
-      - clusterassessments/status
-    verbs:
-      - get
-      - update
-      - patch
-  - apiGroups:
-      - assessment.openshift.io
-    resources:
-      - clusterassessments/finalizers
-    verbs:
-      - update
-
-  # AssessmentSnapshot CRD management
-  - apiGroups:
-      - assessment.openshift.io
-    resources:
-      - assessmentsnapshots
-    verbs:
-      - get
-      - list
-      - watch
-      - create
-      - update
-      - patch
-      - delete
-  - apiGroups:
-      - assessment.openshift.io
-    resources:
-      - assessmentsnapshots/status
-    verbs:
-      - get
-      - update
-      - patch
-
-  # AssessmentProfile CRD management
-  - apiGroups:
-      - assessment.openshift.io
-    resources:
-      - assessmentprofiles
-    verbs:
-      - get
-      - list
-      - watch
-      - create
-      - update
-      - patch
-      - delete
-  - apiGroups:
-      - assessment.openshift.io
-    resources:
-      - assessmentprofiles/status
-    verbs:
-      - get
-      - update
-      - patch
-
-  # Core resources (read-only)
-  - apiGroups:
-      - ""
-    resources:
-      - nodes
-      - namespaces
-      - pods
-      - services
-      - secrets
-      - serviceaccounts
-      - persistentvolumes
-      - persistentvolumeclaims
-      - resourcequotas
-      - limitranges
-    verbs:
-      - get
-      - list
-      - watch
-
-  # ConfigMaps - read and write for reports
-  - apiGroups:
-      - ""
-    resources:
-      - configmaps
-    verbs:
-      - get
-      - list
-      - watch
-      - create
-      - update
-      - patch
-      - delete
-
-  # OpenShift config resources (read-only)
-  - apiGroups:
-      - config.openshift.io
-    resources:
-      - "*"
-    verbs:
-      - get
-      - list
-      - watch
-
-  # MachineConfiguration resources (read-only)
-  - apiGroups:
-      - machineconfiguration.openshift.io
-    resources:
-      - "*"
-    verbs:
-      - get
-      - list
-      - watch
-
-  # Security resources (read-only)
-  - apiGroups:
-      - security.openshift.io
-    resources:
-      - securitycontextconstraints
-    verbs:
-      - get
-      - list
-      - watch
-
-  # RBAC resources (read-only)
-  - apiGroups:
-      - rbac.authorization.k8s.io
-    resources:
-      - clusterroles
-      - clusterrolebindings
-      - roles
-      - rolebindings
-    verbs:
-      - get
-      - list
-      - watch
-
-  # Storage resources (read-only)
-  - apiGroups:
-      - storage.k8s.io
-    resources:
-      - storageclasses
-      - csidrivers
-      - csinodes
-    verbs:
-      - get
-      - list
-      - watch
-
-  # Networking resources (read-only)
-  - apiGroups:
-      - networking.k8s.io
-    resources:
-      - networkpolicies
-      - ingresses
-    verbs:
-      - get
-      - list
-      - watch
-
-  # Operator resources (read-only)
-  - apiGroups:
-      - operator.openshift.io
-    resources:
-      - "*"
-    verbs:
-      - get
-      - list
-      - watch
-
-  # Image Registry Operator resources (read-only)
-  - apiGroups:
-      - imageregistry.operator.openshift.io
-    resources:
-      - configs
-      - imagepruners
-    verbs:
-      - get
-      - list
-      - watch
-
-  # Monitoring resources (read-only)
-  - apiGroups:
-      - monitoring.coreos.com
-    resources:
-      - "*"
-    verbs:
-      - get
-      - list
-      - watch
-
-  # Logging Operator resources (read-only)
-  - apiGroups:
-      - logging.openshift.io
-    resources:
-      - clusterloggings
-      - clusterlogforwarders
-    verbs:
-      - get
-      - list
-      - watch
-
-  # OADP Operator resources (read-only)
-  - apiGroups:
-      - oadp.openshift.io
-    resources:
-      - dataprotectionapplications
-    verbs:
-      - get
-      - list
-      - watch
-
-  # OLM Operator resources (read-only)
-  - apiGroups:
-      - operators.coreos.com
-    resources:
-      - subscriptions
-      - clusterserviceversions
-      - installplans
-      - catalogsources
-    verbs:
-      - get
-      - list
-      - watch
-
-  # Apps resources (read-only)
-  - apiGroups:
-      - apps
-    resources:
-      - deployments
-      - daemonsets
-      - statefulsets
-      - replicasets
-    verbs:
-      - get
-      - list
-      - watch
-
-  # Batch resources (read-only)
-  - apiGroups:
-      - batch
-    resources:
-      - jobs
-      - cronjobs
-    verbs:
-      - get
-      - list
-      - watch
-
-  # Leader election
-  - apiGroups:
-      - coordination.k8s.io
-    resources:
-      - leases
-    verbs:
-      - get
-      - list
-      - watch
-      - create
-      - update
-      - patch
-      - delete
-
-  # Events
-  - apiGroups:
-      - ""
-    resources:
-      - events
-    verbs:
-      - create
-      - patch
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: cluster-assessment-operator
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: cluster-assessment-operator
-subjects:
-  - kind: ServiceAccount
-    name: cluster-assessment-operator
-    namespace: cluster-assessment-operator
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - namespaces
+  - nodes
+  - persistentvolumeclaims
+  - persistentvolumes
+  - pods
+  - secrets
+  - serviceaccounts
+  - services
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - apps
+  resources:
+  - daemonsets
+  - deployments
+  - replicasets
+  - statefulsets
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - assessment.openshift.io
+  resources:
+  - assessmentprofiles
+  - clusterassessments
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - assessment.openshift.io
+  resources:
+  - assessmentprofiles/status
+  - clusterassessments/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - assessment.openshift.io
+  resources:
+  - clusterassessments/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - autoscaling.openshift.io
+  resources:
+  - clusterautoscalers
+  - machineautoscalers
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - config.openshift.io
+  - machineconfiguration.openshift.io
+  - monitoring.coreos.com
+  - operator.openshift.io
+  resources:
+  - '*'
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - machine.openshift.io
+  resources:
+  - machinesets
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - monitoring.coreos.com
+  resources:
+  - prometheusrules
+  verbs:
+  - create
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - ingresses
+  - networkpolicies
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - oadp.openshift.io
+  resources:
+  - dataprotectionapplications
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - clusterrolebindings
+  - clusterroles
+  - rolebindings
+  - roles
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - route.openshift.io
+  resources:
+  - routes
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - security.openshift.io
+  resources:
+  - securitycontextconstraints
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - storage.k8s.io
+  resources:
+  - csidrivers
+  - csinodes
+  - storageclasses
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - velero.io
+  resources:
+  - backups
+  - schedules
+  verbs:
+  - get
+  - list
+  - watch

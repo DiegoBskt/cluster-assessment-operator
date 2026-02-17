@@ -148,6 +148,32 @@ spec:
                   Schedule in cron format for periodic assessments.
                   Leave empty for one-time assessment triggered on CR creation.
                 type: string
+              suppressions:
+                description: |-
+                  Suppressions lists finding IDs to suppress from scoring.
+                  Suppressed findings are still collected and visible in reports
+                  but marked as suppressed and excluded from score calculation.
+                items:
+                  description: SuppressionRule defines a rule for suppressing specific
+                    findings.
+                  properties:
+                    expiresAt:
+                      description: |-
+                        ExpiresAt is an optional expiration time for the suppression.
+                        After this time, the finding will no longer be suppressed.
+                      format: date-time
+                      type: string
+                    findingID:
+                      description: FindingID is the ID of the finding to suppress.
+                      type: string
+                    reason:
+                      description: Reason explains why this finding is being suppressed.
+                      type: string
+                  required:
+                  - findingID
+                  - reason
+                  type: object
+                type: array
               suspend:
                 description: Suspend prevents scheduled assessments from running when
                   true.
@@ -391,6 +417,15 @@ spec:
                         - INFO
                       description: 'Status indicates the finding severity: PASS, WARN,
                         FAIL, or INFO.'
+                      type: string
+                    suppressed:
+                      description: |-
+                        Suppressed indicates this finding was matched by a suppression rule
+                        and is excluded from score calculation.
+                      type: boolean
+                    suppressionReason:
+                      description: SuppressionReason explains why this finding was
+                        suppressed.
                       type: string
                     title:
                       description: Title is a short, human-readable title for the

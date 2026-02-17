@@ -59,6 +59,7 @@ export default function CreateAssessmentModal({
     const [profile, setProfile] = React.useState('production');
     const [enableHtml, setEnableHtml] = React.useState(true);
     const [enableJson, setEnableJson] = React.useState(true);
+    const [enablePdf, setEnablePdf] = React.useState(false);
     const [isSubmitting, setIsSubmitting] = React.useState(false);
     const [error, setError] = React.useState<string | null>(null);
 
@@ -91,7 +92,7 @@ export default function CreateAssessmentModal({
             return;
         }
 
-        if (!enableHtml && !enableJson) {
+        if (!enableHtml && !enableJson && !enablePdf) {
             setError('At least one report format is required');
             return;
         }
@@ -100,8 +101,9 @@ export default function CreateAssessmentModal({
         setError(null);
 
         const formats: string[] = [];
-        if (enableHtml) formats.push('html');
         if (enableJson) formats.push('json');
+        if (enableHtml) formats.push('html');
+        if (enablePdf) formats.push('pdf');
 
         const resource = {
             apiVersion: 'assessment.openshift.io/v1alpha1',
@@ -151,7 +153,7 @@ export default function CreateAssessmentModal({
                     key="create"
                     variant="primary"
                     onClick={handleSubmit}
-                    isDisabled={isSubmitting || !name.trim() || (!enableHtml && !enableJson)}
+                    isDisabled={isSubmitting || !name.trim() || (!enableHtml && !enableJson && !enablePdf)}
                     isLoading={isSubmitting}
                 >
                     Create
@@ -221,7 +223,14 @@ export default function CreateAssessmentModal({
                         onChange={(_event, checked) => setEnableJson(checked)}
                         isDisabled={isSubmitting}
                     />
-                    {(!enableHtml && !enableJson) && (
+                    <Checkbox
+                        id="format-pdf"
+                        label="PDF Report"
+                        isChecked={enablePdf}
+                        onChange={(_event, checked) => setEnablePdf(checked)}
+                        isDisabled={isSubmitting}
+                    />
+                    {(!enableHtml && !enableJson && !enablePdf) && (
                         <FormHelperText>
                             <HelperText>
                                 <HelperTextItem variant="error" icon={<ExclamationCircleIcon />}>

@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.5] - 2026-02-17
+
+### Added
+- **PrometheusRule Alerting**: 5 alert rules targeting existing operator metrics
+  - `ClusterAssessmentScoreLow` (critical, score < 60)
+  - `ClusterAssessmentScoreDegraded` (warning, score < 80)
+  - `ClusterAssessmentRegressions` (warning, regressions detected)
+  - `ClusterAssessmentHighFailCount` (warning, > 5 failed checks)
+  - `ClusterAssessmentStale` (warning, no run in 24h)
+- **5 New Validators** (total now 23):
+  - `podsecurityadmission` - PSA labels, privileged enforcement, restricted enforcement
+  - `ingresstls` - Route and Ingress TLS configuration validation
+  - `clusterautoscaler` - ClusterAutoscaler and MachineAutoscaler presence and config
+  - `oadpbackup` - Velero backup schedules, stale/failed backup detection
+  - `rbacaudit` - Namespace-scoped RBAC audit (cluster-admin bindings, escalation verbs, sensitive resources)
+- **Finding Suppression**:
+  - New `SuppressionRule` struct with `findingID`, `reason`, optional `expiresAt`
+  - `spec.suppressions[]` to configure suppressed findings per assessment
+  - Suppressed findings remain visible but excluded from score calculation
+  - Automatic expiration support for temporary suppressions
+
+### Fixed
+- **Console Plugin**: Added missing PDF report format option in Create Assessment modal
+
+### Changed
+- RBAC role updated with permissions for `route.openshift.io`, `autoscaling.openshift.io`, `machine.openshift.io`, `velero.io`, `oadp.openshift.io`, `monitoring.coreos.com/prometheusrules`
+- CRD updated with `suppressions`, `suppressed`, and `suppressionReason` fields
+
 ## [1.3.1] - 2026-02-04
 
 ### Fixed
@@ -389,6 +417,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date | Description |
 |---------|------|-------------|
+| 1.3.5 | 2026-02-17 | PrometheusRule alerting, 5 new validators, finding suppression, PDF modal fix |
 | 1.3.1 | 2026-02-04 | Lint and type fixes |
 | 1.3.0 | 2026-02-04 | Custom profiles, historical tracking, guided remediation |
 | 1.2.33 | 2026-02-02 | Re-run Assessment button fix |
@@ -406,7 +435,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 | 1.1.0 | 2026-01-15 | 6 new validators (18 total) |
 | 1.0.0 | 2026-01-14 | Initial release |
 
-[Unreleased]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.3.1...HEAD
+[Unreleased]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.3.5...HEAD
+[1.3.5]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.3.1...v1.3.5
 [1.3.1]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.2.44...v1.3.0
 [1.2.44]: https://github.com/diegobskt/cluster-assessment-operator/compare/v1.2.33...v1.2.44

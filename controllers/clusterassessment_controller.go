@@ -72,7 +72,13 @@ type ClusterAssessmentReconciler struct {
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles;clusterrolebindings;roles;rolebindings,verbs=get;list;watch
 // +kubebuilder:rbac:groups=operator.openshift.io,resources=*,verbs=get;list;watch
 // +kubebuilder:rbac:groups=monitoring.coreos.com,resources=*,verbs=get;list;watch
+// +kubebuilder:rbac:groups=monitoring.coreos.com,resources=prometheusrules,verbs=get;list;watch;create;update;patch
 // +kubebuilder:rbac:groups=apps,resources=deployments;daemonsets;statefulsets;replicasets,verbs=get;list;watch
+// +kubebuilder:rbac:groups=route.openshift.io,resources=routes,verbs=get;list;watch
+// +kubebuilder:rbac:groups=autoscaling.openshift.io,resources=clusterautoscalers;machineautoscalers,verbs=get;list;watch
+// +kubebuilder:rbac:groups=machine.openshift.io,resources=machinesets,verbs=get;list;watch
+// +kubebuilder:rbac:groups=velero.io,resources=schedules;backups,verbs=get;list;watch
+// +kubebuilder:rbac:groups=oadp.openshift.io,resources=dataprotectionapplications,verbs=get;list;watch
 
 // Reconcile handles ClusterAssessment reconciliation.
 func (r *ClusterAssessmentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -246,6 +252,12 @@ func (r *ClusterAssessmentReconciler) runAssessment(ctx context.Context, assessm
 	if assessment.Spec.MinSeverity != "" {
 		findings = r.filterBySeverity(findings, assessment.Spec.MinSeverity)
 		logger.Info("Filtered findings by severity", "minSeverity", assessment.Spec.MinSeverity, "filteredCount", len(findings))
+	}
+
+	// Apply suppression rules
+	if len(assessment.Spec.Suppressions) > 0 {
+		findings = r.applySuppressions(findings, assessment.Spec.Suppressions)
+		logger.Info("Applied suppression rules", "suppressionCount", len(assessment.Spec.Suppressions))
 	}
 
 	// Update findings
@@ -445,9 +457,27 @@ func (r *ClusterAssessmentReconciler) calculateSummary(findings []assessmentv1al
 	}
 
 	// Calculate a simple score (0-100)
-	if summary.TotalChecks > 0 {
-		// Weight: Pass=100, Info=80, Warn=50, Fail=0
-		score := (summary.PassCount*100 + summary.InfoCount*80 + summary.WarnCount*50) / summary.TotalChecks
+	// Suppressed findings are excluded from score calculation
+	scoredChecks := 0
+	scoredWeight := 0
+	for _, f := range findings {
+		if f.Suppressed {
+			continue
+		}
+		scoredChecks++
+		switch f.Status {
+		case assessmentv1alpha1.FindingStatusPass:
+			scoredWeight += 100
+		case assessmentv1alpha1.FindingStatusInfo:
+			scoredWeight += 80
+		case assessmentv1alpha1.FindingStatusWarn:
+			scoredWeight += 50
+		case assessmentv1alpha1.FindingStatusFail:
+			// 0
+		}
+	}
+	if scoredChecks > 0 {
+		score := scoredWeight / scoredChecks
 		summary.Score = &score
 	}
 
@@ -817,6 +847,30 @@ func (r *ClusterAssessmentReconciler) filterBySeverity(findings []assessmentv1al
 	}
 
 	return filtered
+}
+
+// applySuppressions marks findings that match suppression rules.
+// Suppressed findings remain in the list but are flagged and excluded from scoring.
+func (r *ClusterAssessmentReconciler) applySuppressions(findings []assessmentv1alpha1.Finding, rules []assessmentv1alpha1.SuppressionRule) []assessmentv1alpha1.Finding {
+	now := time.Now()
+
+	// Build active suppression map (exclude expired rules)
+	suppressions := make(map[string]string, len(rules))
+	for _, rule := range rules {
+		if rule.ExpiresAt != nil && rule.ExpiresAt.Time.Before(now) {
+			continue // Expired suppression
+		}
+		suppressions[rule.FindingID] = rule.Reason
+	}
+
+	for i := range findings {
+		if reason, ok := suppressions[findings[i].ID]; ok {
+			findings[i].Suppressed = true
+			findings[i].SuppressionReason = reason
+		}
+	}
+
+	return findings
 }
 
 // SetupWithManager sets up the controller with the Manager.
