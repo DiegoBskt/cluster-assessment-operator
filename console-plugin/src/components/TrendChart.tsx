@@ -15,6 +15,7 @@ interface AssessmentSnapshot {
     metadata: {
         name: string;
         creationTimestamp: string;
+        labels?: Record<string, string>;
     };
     spec: {
         assessmentName: string;
@@ -36,7 +37,10 @@ interface TrendChartProps {
     assessmentName: string;
 }
 
-const snapshotResource = (assessmentName: string) => ({
+// Fetch ALL snapshots without label selector — selector is unreliable
+// for cluster-scoped CRDs in some console SDK versions.
+// We filter client-side by spec.assessmentName instead.
+const snapshotResource = {
     groupVersionKind: {
         group: 'assessment.openshift.io',
         version: 'v1alpha1',
@@ -44,16 +48,11 @@ const snapshotResource = (assessmentName: string) => ({
     },
     isList: true,
     namespaced: false,
-    selector: {
-        matchLabels: {
-            'assessment.openshift.io/name': assessmentName,
-        },
-    },
-});
+};
 
 export default function TrendChart({ assessmentName }: TrendChartProps) {
-    const [snapshots, loaded, error] = useK8sWatchResource<AssessmentSnapshot[]>(
-        snapshotResource(assessmentName),
+    const [allSnapshots, loaded, error] = useK8sWatchResource<AssessmentSnapshot[]>(
+        snapshotResource,
     );
 
     if (!loaded) {
@@ -72,7 +71,12 @@ export default function TrendChart({ assessmentName }: TrendChartProps) {
         );
     }
 
-    const sorted = [...(snapshots || [])]
+    // Client-side filtering by assessment name
+    const filtered = (allSnapshots || []).filter(
+        (s) => s.spec?.assessmentName === assessmentName,
+    );
+
+    const sorted = filtered
         .filter((s) => s.status?.runTime && s.status?.summary?.score !== undefined)
         .sort((a, b) => {
             const timeA = new Date(a.status!.runTime!).getTime();
@@ -81,6 +85,10 @@ export default function TrendChart({ assessmentName }: TrendChartProps) {
         });
 
     if (sorted.length === 0) {
+        // Show debug info to help troubleshoot
+        const debugInfo = `Total snapshots in cluster: ${(allSnapshots || []).length}, ` +
+            `Matching this assessment: ${filtered.length}, ` +
+            `With valid status: ${sorted.length}`;
         return (
             <Card>
                 <CardBody>
@@ -89,6 +97,10 @@ export default function TrendChart({ assessmentName }: TrendChartProps) {
                         <Title headingLevel="h4" size="lg">No History Available</Title>
                         <EmptyStateBody>
                             Trend data will appear after multiple assessment runs.
+                            <br />
+                            <small style={{ color: 'var(--pf-v5-global--Color--200)' }}>
+                                {debugInfo}
+                            </small>
                         </EmptyStateBody>
                     </EmptyState>
                 </CardBody>
@@ -118,8 +130,8 @@ export default function TrendChart({ assessmentName }: TrendChartProps) {
                                 score >= 80
                                     ? 'var(--pf-v5-global--success-color--100)'
                                     : score >= 50
-                                    ? 'var(--pf-v5-global--warning-color--100)'
-                                    : 'var(--pf-v5-global--danger-color--100)';
+                                        ? 'var(--pf-v5-global--warning-color--100)'
+                                        : 'var(--pf-v5-global--danger-color--100)';
 
                             return (
                                 <tr
