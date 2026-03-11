@@ -65,7 +65,7 @@ jobs:
             type=sha
 
       - name: Build and push operator image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: .
           platforms: linux/amd64,linux/arm64
@@ -76,7 +76,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Build and push bundle image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: bundle.Dockerfile
@@ -181,7 +181,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Build and push catalog image (candidate channel)
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: catalog.Dockerfile
@@ -241,7 +241,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push console plugin image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: ./console-plugin
           platforms: linux/amd64
